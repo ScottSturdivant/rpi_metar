@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import asyncio
-import requests
+import aiohttp
+import async_timeout
 import logging
 import re
 from enum import Enum
-from retrying import retry
 # from neopixel import Color
 def Color(red, green, blue, white = 0):
     return (white << 24) | (red << 16)| (green << 8) | blue
@@ -66,13 +66,15 @@ TOGGLE = {
 }
 
 
-@retry(wait_exponential_multiplier=1000,
-       wait_exponential_max=10000,
-       stop_max_attempt_number=10)
-def get_metar_info(airport_codes=AIRPORT_CODES):
-    response = requests.get(URL.format(airport_codes=','.join(airport_codes.values())))
-    response.raise_for_status()
-    return response
+async def fetch(session, url):
+    async with async_timeout.timeout(10):
+        async with session.get(url) as response:
+            return await response.text()
+
+async def get_metar_info(airport_codes=AIRPORT_CODES):
+    async with aiohttp.ClientSession() as session:
+        html = await fetch(session, URL.format(airport_codes=','.join(airport_codes.values())))
+        return html
 
 
 def get_visibility_and_ceiling(metar_info, airport_code):
@@ -133,7 +135,6 @@ class LEDS(object):
         self._strip.begin()
         # A dictionary mapping LED positions to their current color value.
         self._leds = {position: FlightCategory.UNKNOWN.value for position in AIRPORT_CODES}
-        self.display()
 
 
     def update_color(self, position, color):
@@ -157,7 +158,7 @@ async def refresh_metar_info(leds):
     while True:
         print("Updating metar info.")
         try:
-            info = get_metar_info()
+            info = await get_metar_info()
         except:
             log.exception('Failed to retrieve metar info.')
             for position in AIRPORT_CODES:
@@ -165,7 +166,7 @@ async def refresh_metar_info(leds):
             await asyncio.sleep(60)
 
         for position, code in AIRPORT_CODES.items():
-            visibility, ceiling = get_visibility_and_ceiling(info.content.decode('utf-8'), code)
+            visibility, ceiling = get_visibility_and_ceiling(info, code)
             # print(code, visibility, ceiling)
             category = get_flight_category(visibility, ceiling)
             leds.update_color(position, category.value)
