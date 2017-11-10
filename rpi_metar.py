@@ -1,11 +1,24 @@
 #!/usr/bin/env python
+import threading
 import requests
 import logging
+import logging.handlers
 import re
+import time
 from enum import Enum
 from retrying import retry
+# from neopixel import Color
+def Color(red, green, blue, white = 0):
+        return (white << 24) | (red << 16)| (green << 8) | blue
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
+handler = logging.handlers.SysLogHandler(address='/dev/log')
+handler.setFormatter(formatter)
+log.addHandler(handler)
+
+METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetch, in seconds
 
 # This is a mapping of the LED position on the strip to an airport code.
 AIRPORT_CODES = {
@@ -38,31 +51,50 @@ AIRPORT_CODES = {
     26: 'KDEN',
 }
 
-URL = 'http://www.aviationweather.gov/metar/data?ids={airport_codes}&format=raw&hours=0&taf=off&layout=off&date=0'
 
+GREEN = Color(0, 255, 0)
+RED = Color(255, 0, 0)
+BLUE = Color(0, 0, 255)
+MAGENTA = Color(255, 0, 255)
+YELLOW = Color(255, 255, 0)
+BLACK = Color(0, 0, 0)
 
 class FlightCategory(Enum):
-    VFR = 'green'
-    IFR = 'red'
-    MVFR = 'blue'
-    LIFR = 'magenta'
-    UNKNOWN = 'yellow'
+    VFR = GREEN
+    IFR = RED
+    MVFR = BLUE
+    LIFR = MAGENTA
+    UNKNOWN = YELLOW
+
+# This is a mapping of the LED position to their current color value.
+# It will be updated by the refresh_metar thread and read by the render_leds thread.
+LEDS = {pos: FlightCategory.UNKNOWN for pos in AIRPORT_CODES}
+
+# Where we'll be fetching the METAR info from.
+URL = 'http://www.aviationweather.gov/metar/data?ids={airport_codes}&format=raw&hours=0&taf=off&layout=off&date=0'
+
+# Certain statuses should result in the LEDS blinking.  Inclimate weather conditions
+# and failure to fetch current weather info seem to fit the bill.
+BLINKING_CATEGORIES = set([FlightCategory.LIFR, FlightCategory.UNKNOWN])
 
 
 @retry(wait_exponential_multiplier=1000,
        wait_exponential_max=10000,
        stop_max_attempt_number=10)
 def get_metar_info(airport_codes=AIRPORT_CODES):
+    """Queries the METAR service."""
+    log.info("Getting METAR info.")
     response = requests.get(URL.format(airport_codes=','.join(airport_codes.values())))
     response.raise_for_status()
     return response
 
 
-def get_visibility_and_ceiling(metar_info, airport_code):
-    """Returns the visibility and ceiling for a given airport from some meta info."""
+def get_conditions(metar_info, airport_code):
+    """Returns the visibility and ceiling for a given airport from some metar info."""
     visibility = ceiling = None
     for line in metar_info.splitlines():
         if line.startswith(airport_code):
+            log.debug(line)
             # Visibility
             # We may have fractions, e.g. 1/8SM
             # Or it will be whole numbers, e.g. 2SM
@@ -82,6 +114,8 @@ def get_visibility_and_ceiling(metar_info, airport_code):
 
 
 def get_flight_category(visibility, ceiling):
+    """Converts weather conditions into a category."""
+    log.debug('Finding category for %s, %s', visibility, ceiling)
     if visibility is None and ceiling is None:
         return FlightCategory.UNKNOWN
     elif visibility >= 5 and (ceiling is None or ceiling >= 3000):
@@ -95,39 +129,110 @@ def get_flight_category(visibility, ceiling):
     raise ValueError
 
 
+def render_leds(leds, flag):
+    """Responsible for updating the LEDS.
+
+    This is in a separate thread so that the blinking lights can be running
+    without interfering with the periodic refresh of the METAR data.
+    """
+    blink_period = 1.0
+
+    def _blink(leds):
+        for position, category in LEDS.items():
+            color = category.value
+            leds.setPixelColor(position, color)
+        leds.show()
+        time.sleep(blink_period / 2)
+
+        for position, category in LEDS.items():
+            color = category.value if category not in BLINKING_CATEGORIES else BLACK
+            leds.setPixelColor(position, color)
+        leds.show()
+        time.sleep(blink_period / 2)
+
+    while flag.is_set():
+        try:
+            _blink(leds)
+        except:
+            log.exception('Unhandled exception.')
+            flag.clear()
+
+    log.info('Exiting.')
 
 
-def main():
-    leds = Adafruit_NeoPixel(len(AIRPORT_CODES))
-    leds.begin()
+def refresh_metar(flag):
+    """Fetches new METAR information and updates the airport LEDS with the current info."""
+    metar_next_refresh_at = time.time()
 
-    for position in AIRPORT_CODES:
-        leds.setPixelColor(position, FlightCategory.UNKNOWN.value)
-    leds.show()
-
-    while True:
+    def _refresh():
         try:
             info = get_metar_info()
         except:
             log.exception('Failed to retrieve metar info.')
-            for position in AIRPORT_CODES:
-                leds.setPixelColor(position, FlightCategory.UNKNOWN.value)
-            leds.show()
-            time.sleep(60)
-            continue
+            for position in LEDS:
+                LEDS[position] = FlightCategory.UNKNOWN
 
         for position, code in AIRPORT_CODES.items():
-            visibility, ceiling = get_visibility_and_ceiling(info.content.decode('utf-8'), code)
+            visibility, ceiling = get_conditions(info.content.decode('utf-8'), code)
             category = get_flight_category(visibility, ceiling)
-            leds.setPixelColor(position, category.value)
+            LEDS[position] = category
 
-        leds.show()
-        time.sleep(5 * 60)
+    while flag.is_set():
+        if time.time() < metar_next_refresh_at:
+            # We wake up early to make sure the other thread hasn't ended.
+            time.sleep(1.0)
+            continue
+
+        try:
+            _refresh()
+        except:
+            log.exception('Failed to refresh METAR info.')
+            flag.clear()
+        else:
+            metar_next_refresh_at = time.time() + METAR_REFRESH_RATE
+
+    log.info('Exiting.')
+
+
+class Dummy():
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def begin(self):
+        pass
+
+    def setPixelColor(self, pos, col):
+        pass
+
+    def show(self):
+        pass
+
+
+def main():
+
+    # leds = Adafruit_NeoPixel(len(AIRPORT_CODES))
+    leds = Dummy()
+    leds.begin()
+
+    # This flag allows us to stop all of the threads if one has died.  It's not much
+    # use if the render thread runs while the refresh METAR thread has died.  So if
+    # one thread dies, so should the other, then the program should terminate and
+    # systemd would be responsible for restarting it.
+    flag = threading.Event()
+    flag.set()
+
+    threads = [
+        threading.Thread(name='render_leds', target=render_leds, args=(leds, flag)),
+        threading.Thread(name='refresh_metar', target=refresh_metar, args=(flag,)),
+    ]
+
+    for thread in threads:
+        thread.start()
+
+    # Now, these threads should run forever, but, you know, stuff happens.
+    for thread in threads:
+        thread.join()
 
 
 if __name__ == '__main__':
-    info = get_metar_info()
-    for position, code in AIRPORT_CODES.items():
-        visibility, ceiling = get_visibility_and_ceiling(info.content.decode('utf-8'), code)
-        category = get_flight_category(visibility, ceiling)
-        print('{}:\n\tVisibility: {}\n\tCeiling: {}\n\tCategory: {}'.format(code, visibility, ceiling, category))
+    main()
