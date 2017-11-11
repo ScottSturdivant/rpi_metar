@@ -168,6 +168,13 @@ def refresh_metar(flag):
     log.info('Exiting.')
 
 
+def all_off(leds):
+    """Sets all leds off."""
+    for i in range(leds.numPixels()):
+        leds.setPixelColor(i, BLACK)
+    leds.show()
+
+
 def load_configuration():
     cfg_files = ['/etc/rpi_metar.conf', './rpi_metar.conf']
 
@@ -191,6 +198,7 @@ def main():
 
     leds = PixelStrip(max(AIRPORT_CODES.keys()) + 1, 18)
     leds.begin()
+    all_off(leds)
 
     # This flag allows us to stop all of the threads if one has died.  It's not much
     # use if the render thread runs while the refresh METAR thread has died.  So if
@@ -214,10 +222,7 @@ def main():
     except:
         log.exception("It's quitin' time.")
     finally:
-        # Blank out the display
-        for i in range(leds.numPixels()):
-            leds.setPixelColor(i, BLACK)
-        leds.show()
+        all_off(leds)
 
 
 if __name__ == '__main__':
