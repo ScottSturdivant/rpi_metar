@@ -6,6 +6,7 @@ import logging.handlers
 import re
 import time
 from enum import Enum
+from configparser import ConfigParser
 from retrying import retry
 # from neopixel import Color
 def Color(red, green, blue, white = 0):
@@ -18,40 +19,9 @@ handler = logging.handlers.SysLogHandler(address='/dev/log')
 handler.setFormatter(formatter)
 log.addHandler(handler)
 
-METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetch, in seconds
+METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
 
 # This is a mapping of the LED position on the strip to an airport code.
-AIRPORT_CODES = {
-    0: 'KBOS',
-    1: 'KBED',
-    2: 'KOWD',
-    3: 'KLWM',
-    4: 'KBVY',
-    5: 'KFIT',
-    6: 'KTAN',
-    7: 'KGHG',
-    8: 'KPYM',
-    9: 'KPVC',
-    10: 'KCQX',
-    11: 'KHYA',
-    12: 'KFMH',
-    13: 'KACK',
-    14: 'KMVY',
-    15: 'KEWB',
-    16: 'KORH',
-    17: 'KORE',
-    18: 'KASH',
-    19: 'KMHT',
-    20: 'KAFN',
-    21: 'KEEN',
-    22: 'KSFZ',
-    23: 'KPVD',
-    24: 'KOQU',
-    25: 'KUUU',
-    26: 'KDEN',
-}
-
-
 GREEN = Color(0, 255, 0)
 RED = Color(255, 0, 0)
 BLUE = Color(0, 0, 255)
@@ -66,9 +36,11 @@ class FlightCategory(Enum):
     LIFR = MAGENTA
     UNKNOWN = YELLOW
 
+# This relates an LED index to an airport.
+AIRPORT_CODES= {}
 # This is a mapping of the LED position to their current color value.
 # It will be updated by the refresh_metar thread and read by the render_leds thread.
-LEDS = {pos: FlightCategory.UNKNOWN for pos in AIRPORT_CODES}
+LEDS = {}
 
 # Where we'll be fetching the METAR info from.
 URL = 'http://www.aviationweather.gov/metar/data?ids={airport_codes}&format=raw&hours=0&taf=off&layout=off&date=0'
@@ -81,7 +53,7 @@ BLINKING_CATEGORIES = set([FlightCategory.LIFR, FlightCategory.UNKNOWN])
 @retry(wait_exponential_multiplier=1000,
        wait_exponential_max=10000,
        stop_max_attempt_number=10)
-def get_metar_info(airport_codes=AIRPORT_CODES):
+def get_metar_info(airport_codes):
     """Queries the METAR service."""
     log.info("Getting METAR info.")
     response = requests.get(URL.format(airport_codes=','.join(airport_codes.values())))
@@ -166,7 +138,7 @@ def refresh_metar(flag):
 
     def _refresh():
         try:
-            info = get_metar_info()
+            info = get_metar_info(AIRPORT_CODES)
         except:
             log.exception('Failed to retrieve metar info.')
             for position in LEDS:
@@ -194,6 +166,18 @@ def refresh_metar(flag):
     log.info('Exiting.')
 
 
+def load_configuration():
+    cfg_files = ['/etc/rpi_metar.conf', './rpi_metar.conf']
+
+    cfg = ConfigParser()
+    cfg.read(cfg_files)
+
+    for code in cfg.options('airports'):
+        index = cfg.getint('airports', code)
+        AIRPORT_CODES[index] = code.upper()
+        LEDS[index] = FlightCategory.UNKNOWN
+
+
 class Dummy():
     def __init__(self, *args, **kwargs):
         pass
@@ -209,6 +193,11 @@ class Dummy():
 
 
 def main():
+
+    cfg = load_configuration()
+    log.debug('cfg loaded.')
+    log.debug(AIRPORT_CODES)
+    log.debug(LEDS)
 
     # leds = Adafruit_NeoPixel(len(AIRPORT_CODES))
     leds = Dummy()
