@@ -8,7 +8,7 @@ import time
 from enum import Enum
 from configparser import ConfigParser
 from retrying import retry
-from rpi_ws281x import PixelStrip
+from rpi_ws281x import PixelStrip, Color
 
 
 log = logging.getLogger(__name__)
