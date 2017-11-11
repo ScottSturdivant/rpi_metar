@@ -12,17 +12,11 @@ from rpi_ws281x import PixelStrip, Color
 
 
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
-handler = logging.handlers.SysLogHandler(address='/dev/log')
-handler.setFormatter(formatter)
-log.addHandler(handler)
 
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
 
-# PixelStrip sets the strip type to GRB
-GREEN = Color(255, 0, 0)
-RED = Color(0, 255, 0)
+GREEN = Color(0, 255, 0)
+RED = Color(255, 0, 0)
 BLUE = Color(0, 0, 255)
 MAGENTA = Color(0, 255, 255)
 YELLOW = Color(255, 255, 0)
@@ -48,6 +42,14 @@ URL = 'http://www.aviationweather.gov/metar/data?ids={airport_codes}&format=raw&
 # Certain statuses should result in the LEDS blinking.  Inclimate weather conditions
 # and failure to fetch current weather info seem to fit the bill.
 BLINKING_CATEGORIES = set([FlightCategory.LIFR, FlightCategory.UNKNOWN])
+
+
+def init_logger():
+    log.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
+    handler = logging.handlers.SysLogHandler(address='/dev/log')
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
 
 
 @retry(wait_exponential_multiplier=1000,
@@ -180,6 +182,8 @@ def load_configuration():
 
 def main():
 
+    init_logger()
+
     cfg = load_configuration()
     log.debug('cfg loaded.')
     log.debug(AIRPORT_CODES)
@@ -208,7 +212,7 @@ def main():
         while threading.active_count() > 0:
             time.sleep(1.0)
     except:
-        log.exception()
+        log.exception("It's quitin' time.")
     finally:
         # Blank out the display
         for i in range(leds.numPixels()):
