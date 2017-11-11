@@ -8,9 +8,8 @@ import time
 from enum import Enum
 from configparser import ConfigParser
 from retrying import retry
-# from neopixel import Color
-def Color(red, green, blue, white = 0):
-        return (white << 24) | (red << 16)| (green << 8) | blue
+from rpi_ws281x import PixelStrip
+
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -21,13 +20,14 @@ log.addHandler(handler)
 
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
 
-# This is a mapping of the LED position on the strip to an airport code.
-GREEN = Color(0, 255, 0)
-RED = Color(255, 0, 0)
+# PixelStrip sets the strip type to GRB
+GREEN = Color(255, 0, 0)
+RED = Color(0, 255, 0)
 BLUE = Color(0, 0, 255)
-MAGENTA = Color(255, 0, 255)
+MAGENTA = Color(0, 255, 255)
 YELLOW = Color(255, 255, 0)
 BLACK = Color(0, 0, 0)
+
 
 class FlightCategory(Enum):
     VFR = GREEN
@@ -178,20 +178,6 @@ def load_configuration():
         LEDS[index] = FlightCategory.UNKNOWN
 
 
-class Dummy():
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def begin(self):
-        pass
-
-    def setPixelColor(self, pos, col):
-        pass
-
-    def show(self):
-        pass
-
-
 def main():
 
     cfg = load_configuration()
@@ -199,8 +185,7 @@ def main():
     log.debug(AIRPORT_CODES)
     log.debug(LEDS)
 
-    # leds = Adafruit_NeoPixel(len(AIRPORT_CODES))
-    leds = Dummy()
+    leds = PixelStrip(max(AIRPORT_CODES.keys()) + 1, 18)
     leds.begin()
 
     # This flag allows us to stop all of the threads if one has died.  It's not much
@@ -216,11 +201,19 @@ def main():
     ]
 
     for thread in threads:
+        thread.daemon = True
         thread.start()
 
-    # Now, these threads should run forever, but, you know, stuff happens.
-    for thread in threads:
-        thread.join()
+    try:
+        while threading.active_count() > 0:
+            time.sleep(1.0)
+    except:
+        log.exception()
+    finally:
+        # Blank out the display
+        for i in range(leds.numPixels()):
+            leds.setPixelColor(i, BLACK)
+        leds.show()
 
 
 if __name__ == '__main__':
