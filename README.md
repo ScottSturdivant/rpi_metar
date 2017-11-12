@@ -7,6 +7,8 @@ Pi, some WS281X LEDs, and the four letter designators of the airports you are in
 # Install
 
 ```
+sudo su
+apt install python3-venv
 virtualenv -p python3.5 /opt/rpi_metar
 source /opt/rpi_metar/bin/activate
 pip install rpi_metar
@@ -22,7 +24,6 @@ codes are assigned to LEDs.  For example:
 [airports]
 KDEN = 0
 KBOS = 1
-}
 ```
 
 The LED indexes can be skipped and do not need to be continuous.  If you don't have an LED
@@ -40,6 +41,7 @@ Description=METAR Display
 ExecStart=/opt/rpi_metar/bin/rpi_metar
 User=root
 Group=root
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
