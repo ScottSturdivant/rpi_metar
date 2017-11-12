@@ -18,7 +18,7 @@ METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in second
 GREEN = Color(0, 255, 0)
 RED = Color(255, 0, 0)
 BLUE = Color(0, 0, 255)
-MAGENTA = Color(0, 255, 255)
+MAGENTA = Color(255, 0, 255)
 YELLOW = Color(255, 255, 0)
 BLACK = Color(0, 0, 0)
 
