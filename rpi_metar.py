@@ -52,7 +52,7 @@ class FlightCategory(Enum):
     UNKNOWN = YELLOW
 
 # This relates an LED index to an airport.
-AIRPORT_CODES= {}
+AIRPORT_CODES = {}
 # This is a mapping of the LED position to their current color value.
 # It will be updated by the refresh_metar thread and read by the render_leds thread.
 LEDS = {}
@@ -148,7 +148,7 @@ def render_leds(leds, flag):
     while flag.is_set():
         try:
             _blink(leds)
-        except:
+        except:  # noqa
             log.exception('Unhandled exception.')
             flag.clear()
 
@@ -162,7 +162,7 @@ def refresh_metar(flag):
     def _refresh():
         try:
             info = get_metar_info(AIRPORT_CODES)
-        except:
+        except:  # noqa
             log.exception('Failed to retrieve metar info.')
             for position in LEDS:
                 LEDS[position] = FlightCategory.UNKNOWN
@@ -180,7 +180,7 @@ def refresh_metar(flag):
 
         try:
             _refresh()
-        except:
+        except:  # noqa
             log.exception('Failed to refresh METAR info.')
             flag.clear()
         else:
@@ -212,7 +212,7 @@ def main():
 
     init_logger()
 
-    cfg = load_configuration()
+    load_configuration()
     log.debug('cfg loaded.')
     log.debug(AIRPORT_CODES)
     log.debug(LEDS)
@@ -240,7 +240,7 @@ def main():
     try:
         while threading.active_count() > 0:
             time.sleep(1.0)
-    except:
+    except:  # noqa
         log.exception("It's quitin' time.")
     finally:
         all_off(leds)
