@@ -4,6 +4,9 @@ Inspired by some DIY projects, this script allows you to quickly discern weather
 changing the colors of LEDs to reflect the current METAR information.  You will need a Raspberry
 Pi, some WS281X LEDs, and the four letter designators of the airports you are interested in.
 
+This code assumes you've connected to GPIO 18 (PWM0) and have added `blacklist snd_bcm2835` to the
+`/etc/modprobe.d/snd-blacklist.conf` file.
+
 # Install
 
 ```
