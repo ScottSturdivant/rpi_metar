@@ -216,15 +216,12 @@ def main():
         thread.daemon = True
         thread.start()
 
-    try:
-        # If either the render or the refresh thread dies, this program should
-        # exit so that systemd will restart it.
-        while threading.active_count() == len(threads) + 1:  # main thread too!
-            time.sleep(1.0)
-    except:  # noqa
-        log.exception("It's quitin' time.")
-    finally:
-        all_off(leds)
+    # If either the render or the refresh thread dies, this program should
+    # exit so that systemd will restart it.
+    while threading.active_count() == len(threads) + 1:  # main thread too!
+        time.sleep(1.0)
+
+    all_off(leds)
 
 
 if __name__ == '__main__':
