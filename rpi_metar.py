@@ -124,7 +124,7 @@ def get_flight_category(visibility, ceiling):
     raise ValueError
 
 
-def render_leds(leds, flag):
+def render_leds(leds):
     """Responsible for updating the LEDS.
 
     This is in a separate thread so that the blinking lights can be running
@@ -132,7 +132,7 @@ def render_leds(leds, flag):
     """
     blink_period = 1.0
 
-    def _blink(leds):
+    while True:
         for position, category in LEDS.items():
             color = category.value
             leds.setPixelColor(position, color)
@@ -145,21 +145,12 @@ def render_leds(leds, flag):
         leds.show()
         time.sleep(blink_period / 2)
 
-    while flag.is_set():
-        try:
-            _blink(leds)
-        except:  # noqa
-            log.exception('Unhandled exception.')
-            flag.clear()
 
-    log.info('Exiting.')
-
-
-def refresh_metar(flag):
+def refresh_metar():
     """Fetches new METAR information and updates the airport LEDS with the current info."""
-    metar_next_refresh_at = time.time()
 
-    def _refresh():
+    while True:
+
         try:
             info = get_metar_info(AIRPORT_CODES)
         except:  # noqa
@@ -169,24 +160,14 @@ def refresh_metar(flag):
 
         for position, code in AIRPORT_CODES.items():
             visibility, ceiling = get_conditions(info.content.decode('utf-8'), code)
-            category = get_flight_category(visibility, ceiling)
+            try:
+                category = get_flight_category(visibility, ceiling)
+            except (TypeError, ValueError):
+                log.exception("Failed to get flight category from %s, %s", visibility, ceiling)
+                category = FlightCategory.UNKNOWN
             LEDS[position] = category
 
-    while flag.is_set():
-        if time.time() < metar_next_refresh_at:
-            # We wake up early to make sure the other thread hasn't ended.
-            time.sleep(1.0)
-            continue
-
-        try:
-            _refresh()
-        except:  # noqa
-            log.exception('Failed to refresh METAR info.')
-            flag.clear()
-        else:
-            metar_next_refresh_at = time.time() + METAR_REFRESH_RATE
-
-    log.info('Exiting.')
+        time.sleep(METAR_REFRESH_RATE)
 
 
 def all_off(leds):
@@ -221,16 +202,9 @@ def main():
     leds.begin()
     all_off(leds)
 
-    # This flag allows us to stop all of the threads if one has died.  It's not much
-    # use if the render thread runs while the refresh METAR thread has died.  So if
-    # one thread dies, so should the other, then the program should terminate and
-    # systemd would be responsible for restarting it.
-    flag = threading.Event()
-    flag.set()
-
     threads = [
-        threading.Thread(name='render_leds', target=render_leds, args=(leds, flag)),
-        threading.Thread(name='refresh_metar', target=refresh_metar, args=(flag,)),
+        threading.Thread(name='render_leds', target=render_leds, args=(leds)),
+        threading.Thread(name='refresh_metar', target=refresh_metar),
     ]
 
     for thread in threads:
@@ -238,7 +212,9 @@ def main():
         thread.start()
 
     try:
-        while threading.active_count() > 0:
+        # If either the render or the refresh thread dies, this program should
+        # exit so that systemd will restart it.
+        while threading.active_count() == len(threads) + 1:  # main thread too!
             time.sleep(1.0)
     except:  # noqa
         log.exception("It's quitin' time.")
