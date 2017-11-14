@@ -208,7 +208,7 @@ def main():
     all_off(leds)
 
     threads = [
-        threading.Thread(name='render_leds', target=render_leds, args=(leds)),
+        threading.Thread(name='render_leds', target=render_leds, args=(leds,)),
         threading.Thread(name='refresh_metar', target=refresh_metar),
     ]
 
