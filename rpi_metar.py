@@ -113,7 +113,12 @@ def get_flight_category(visibility, ceiling):
     log.debug('Finding category for %s, %s', visibility, ceiling)
     if visibility is None and ceiling is None:
         return FlightCategory.UNKNOWN
-    elif visibility >= 5 and (ceiling is None or ceiling >= 3000):
+
+    # Unlimited ceiling
+    if visibility and ceiling is None:
+        ceiling = 10000
+
+    if visibility >= 5 and ceiling >= 3000:
         return FlightCategory.VFR
     elif 3 <= visibility <= 5 or 1000 <= ceiling <= 3000:
         return FlightCategory.MVFR
