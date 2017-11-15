@@ -51,8 +51,10 @@ class FlightCategory(Enum):
     LIFR = MAGENTA
     UNKNOWN = YELLOW
 
+
 # This relates an LED index to an airport.
 AIRPORT_CODES = {}
+
 # This is a mapping of the LED position to their current color value.
 # It will be updated by the refresh_metar thread and read by the render_leds thread.
 LEDS = {}
