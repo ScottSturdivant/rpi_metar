@@ -206,7 +206,6 @@ def main():
     init_logger()
 
     load_configuration()
-    log.debug('cfg loaded.')
 
     leds = PixelStrip(max(AIRPORT_CODES.keys()) + 1, 18, gamma=GAMMA)
     leds.begin()
