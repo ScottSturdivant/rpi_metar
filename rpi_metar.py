@@ -15,10 +15,11 @@ log = logging.getLogger(__name__)
 
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
 
-GREEN = Color(0, 255, 0)
-RED = Color(255, 0, 0)
+# The rpi_ws281x library initializes the strip as GRB.
+GREEN = Color(255, 0, 0)
+RED = Color(0, 255, 0)
 BLUE = Color(0, 0, 255)
-MAGENTA = Color(255, 0, 255)
+MAGENTA = Color(0, 255, 255)
 YELLOW = Color(255, 255, 0)
 BLACK = Color(0, 0, 0)
 
