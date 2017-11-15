@@ -55,12 +55,27 @@ class FlightCategory(Enum):
     UNKNOWN = YELLOW
 
 
-# This relates an LED index to an airport.
-AIRPORT_CODES = {}
+class Airport(object):
 
-# This is a mapping of the LED position to their current color value.
-# It will be updated by the refresh_metar thread and read by the render_leds thread.
-LEDS = {}
+    def __init__(self, code, led_index):
+        self.code = code.upper()
+        self.index = led_index
+        self.visibility = None
+        self.ceiling = None
+        self.category = FlightCategory.UNKNOWN
+
+    def __repr__(self):
+        return '<{code} @ {index}: VIS={vis} CEIL={ceil} -> {cat}>'.format(
+            code=self.code,
+            index=self.index,
+            vis=self.visibility,
+            ceil=self.ceiling,
+            cat=self.category.name
+        )
+
+
+# A collection of the airports we'll ultimately be tracking.
+AIRPORTS = []
 
 # Where we'll be fetching the METAR info from.
 URL = 'http://www.aviationweather.gov/metar/data?ids={airport_codes}&format=raw&hours=0&taf=off&layout=off&date=0'
@@ -84,7 +99,7 @@ def init_logger():
 def get_metar_info(airport_codes):
     """Queries the METAR service."""
     log.info("Getting METAR info.")
-    response = requests.get(URL.format(airport_codes=','.join(airport_codes.values())))
+    response = requests.get(URL.format(airport_codes=','.join(airport_codes)))
     response.raise_for_status()
     return response
 
@@ -143,15 +158,15 @@ def render_leds(leds):
     blink_period = 1.0
 
     while True:
-        for position, category in LEDS.items():
-            color = category.value
-            leds.setPixelColor(position, color)
+        for airport in AIRPORTS:
+            color = airport.category.value
+            leds.setPixelColor(airport.index, color)
         leds.show()
         time.sleep(blink_period / 2)
 
-        for position, category in LEDS.items():
-            color = category.value if category not in BLINKING_CATEGORIES else BLACK
-            leds.setPixelColor(position, color)
+        for airport in AIRPORTS:
+            color = airport.category.value if airport.category not in BLINKING_CATEGORIES else BLACK
+            leds.setPixelColor(airport.index, color)
         leds.show()
         time.sleep(blink_period / 2)
 
@@ -162,23 +177,21 @@ def refresh_metar():
     while True:
 
         try:
-            info = get_metar_info(AIRPORT_CODES)
+            info = get_metar_info((airport.code for airport in AIRPORTS))
         except:  # noqa
             log.exception('Failed to retrieve metar info.')
-            for position in LEDS:
-                LEDS[position] = FlightCategory.UNKNOWN
+            for airport in AIRPORTS:
+                airport.category = FlightCategory.UNKNOWN
 
-        for position, code in AIRPORT_CODES.items():
-            visibility, ceiling = get_conditions(info.content.decode('utf-8'), code)
+        for airport in AIRPORTS:
+            airport.visibility, airport.ceiling = get_conditions(info.content.decode('utf-8'), airport.code)
             try:
-                category = get_flight_category(visibility, ceiling)
+                airport.category = get_flight_category(airport.visibility, airport.ceiling)
             except (TypeError, ValueError):
-                log.exception("Failed to get flight category from %s, %s", visibility, ceiling)
-                category = FlightCategory.UNKNOWN
-            LEDS[position] = category
+                log.exception("Failed to get flight category from %s, %s", airport.visibility, airport.ceiling)
+                airport.category = FlightCategory.UNKNOWN
 
-        log.debug(AIRPORT_CODES)
-        log.debug(LEDS)
+        log.info(AIRPORTS)
         time.sleep(METAR_REFRESH_RATE)
 
 
@@ -197,8 +210,7 @@ def load_configuration():
 
     for code in cfg.options('airports'):
         index = cfg.getint('airports', code)
-        AIRPORT_CODES[index] = code.upper()
-        LEDS[index] = FlightCategory.UNKNOWN
+        AIRPORTS.append(Airport(code, index))
 
 
 def main():
@@ -207,7 +219,7 @@ def main():
 
     load_configuration()
 
-    leds = PixelStrip(max(AIRPORT_CODES.keys()) + 1, 18, gamma=GAMMA)
+    leds = PixelStrip(len(AIRPORTS) + 1, 18, gamma=GAMMA)
     leds.begin()
     all_off(leds)
 
