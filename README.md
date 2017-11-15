@@ -12,7 +12,7 @@ This code assumes you've connected to GPIO 18 (PWM0) and have added `blacklist s
 ```
 sudo su
 apt install python3-venv
-virtualenv -p python3 /opt/rpi_metar
+python3 -m venv /opt/rpi_metar
 source /opt/rpi_metar/bin/activate
 pip install rpi_metar
 ```
