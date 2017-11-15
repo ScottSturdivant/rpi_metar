@@ -4,6 +4,8 @@ import requests
 import logging
 import logging.handlers
 import re
+import signal
+import sys
 import time
 from enum import Enum
 from configparser import ConfigParser
@@ -175,6 +177,8 @@ def refresh_metar():
                 category = FlightCategory.UNKNOWN
             LEDS[position] = category
 
+        log.debug(AIRPORT_CODES)
+        log.debug(LEDS)
         time.sleep(METAR_REFRESH_RATE)
 
 
@@ -203,12 +207,18 @@ def main():
 
     load_configuration()
     log.debug('cfg loaded.')
-    log.debug(AIRPORT_CODES)
-    log.debug(LEDS)
 
     leds = PixelStrip(max(AIRPORT_CODES.keys()) + 1, 18, gamma=GAMMA)
     leds.begin()
     all_off(leds)
+
+    # Install a signal handler so that when systemd kills this program, we aren't
+    # left with LEDs in a state implying that it's still running.
+    def handler(signum, frame):
+        log.info('Shutting down.')
+        all_off(leds)
+        sys.exit()
+    signal.signal(signal.SIGTERM, handler)
 
     threads = [
         threading.Thread(name='render_leds', target=render_leds, args=(leds,)),
