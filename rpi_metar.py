@@ -99,8 +99,12 @@ def init_logger():
 def get_metar_info(airport_codes):
     """Queries the METAR service."""
     log.info("Getting METAR info.")
-    response = requests.get(URL.format(airport_codes=','.join(airport_codes)))
-    response.raise_for_status()
+    try:
+        response = requests.get(URL.format(airport_codes=','.join(airport_codes)))
+        response.raise_for_status()
+    except:  # noqa
+        log.exception('Failed to get METAR info.')
+        raise
     return response
 
 
@@ -177,7 +181,7 @@ def refresh_metar():
     while True:
 
         try:
-            info = get_metar_info((airport.code for airport in AIRPORTS))
+            info = get_metar_info([airport.code for airport in AIRPORTS])
         except:  # noqa
             log.exception('Failed to retrieve metar info.')
             for airport in AIRPORTS:
