@@ -225,7 +225,7 @@ def main():
 
     load_configuration()
 
-    leds = PixelStrip(len(AIRPORTS) + 1, 18, gamma=GAMMA)
+    leds = PixelStrip(max((airport.index for airport in AIRPORTS)) + 1, 18, gamma=GAMMA)
     leds.begin()
     all_off(leds)
 
