@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from fractions import Fraction
 import threading
 import requests
 import logging
@@ -117,15 +118,12 @@ def get_conditions(metar_info, airport_code):
         if line.startswith(airport_code):
             log.debug(line)
             # Visibility
-            # We may have fractions, e.g. 1/8SM
+            # We may have fractions, e.g. 1/8SM or 1 1/2SM
             # Or it will be whole numbers, e.g. 2SM
-            match = re.search(r'(?P<visibility>\d+(/\d)?)SM', line)
+            match = re.search(r'(?P<visibility>(?:\d+\s+)?\d+(?:/\d)?)SM', line)
             if match:
                 visibility = match.group('visibility')
-                try:
-                    visibility = int(visibility)
-                except ValueError:  # Fractions...
-                    visibility = eval(visibility)
+                visibility = float(sum(Fraction(s) for s in visibility.split()))
             # Ceiling
             match = re.search(r'(VV|BKN|OVC)(?P<ceiling>\d{3})', line)
             if match:
