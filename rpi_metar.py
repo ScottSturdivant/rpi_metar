@@ -143,14 +143,14 @@ def get_flight_category(visibility, ceiling):
         ceiling = 10000
 
     # http://www.faraim.org/aim/aim-4-03-14-446.html
-    if visibility >= 5 and ceiling > 3000:
-        return FlightCategory.VFR
-    elif 3 <= visibility <= 5 or 1000 <= ceiling <= 3000:
-        return FlightCategory.MVFR
+    if visibility <= 1 or ceiling <= 500:
+        return FlightCategory.LIFR
     elif 1 <= visibility <= 3 or 500 <= ceiling <= 1000:
         return FlightCategory.IFR
-    elif visibility <= 1 or ceiling <= 500:
-        return FlightCategory.LIFR
+    elif 3 <= visibility <= 5 or 1000 <= ceiling <= 3000:
+        return FlightCategory.MVFR
+    elif visibility >= 5 and ceiling > 3000:
+        return FlightCategory.VFR
     raise ValueError
 
 
