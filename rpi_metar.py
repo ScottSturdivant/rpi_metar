@@ -120,7 +120,8 @@ def get_conditions(metar_info, airport_code):
             # Visibility
             # We may have fractions, e.g. 1/8SM or 1 1/2SM
             # Or it will be whole numbers, e.g. 2SM
-            match = re.search(r'(?P<visibility>(?:\d+\s+)?\d+(?:/\d)?)SM', line)
+            # There's also variable wind speeds, followed by vis, e.g. 300V360 1/2SM
+            match = re.search(r'(?P<visibility>(?:\b\d+\s+)?\d+(?:/\d)?)SM', line)
             if match:
                 visibility = match.group('visibility')
                 visibility = float(sum(Fraction(s) for s in visibility.split()))
