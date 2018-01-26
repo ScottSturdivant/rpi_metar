@@ -1,0 +1,3 @@
+requests==2.18.4
+retrying==1.3.3
+rpi-ws281x==3.0.3
