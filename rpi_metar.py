@@ -124,7 +124,10 @@ def get_conditions(metar_info, airport_code):
             match = re.search(r'(?P<visibility>(?:\b\d+\s+)?\d+(?:/\d)?)SM', line)
             if match:
                 visibility = match.group('visibility')
-                visibility = float(sum(Fraction(s) for s in visibility.split()))
+                try:
+                    visibility = float(sum(Fraction(s) for s in visibility.split()))
+                except ZeroDivisionError:
+                    visibility = None
             # Ceiling
             match = re.search(r'(VV|BKN|OVC)(?P<ceiling>\d{3})', line)
             if match:
