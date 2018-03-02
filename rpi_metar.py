@@ -191,6 +191,8 @@ def refresh_metar():
             log.exception('Failed to retrieve metar info.')
             for airport in AIRPORTS:
                 airport.category = FlightCategory.UNKNOWN
+            time.sleep(METAR_REFRESH_RATE)
+            continue
 
         for airport in AIRPORTS:
             airport.visibility, airport.ceiling = get_conditions(info.content.decode('utf-8'), airport.code)
