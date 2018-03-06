@@ -81,10 +81,6 @@ AIRPORTS = []
 # Where we'll be fetching the METAR info from.
 URL = 'http://www.aviationweather.gov/metar/data?ids={airport_codes}&format=raw&hours=0&taf=off&layout=off&date=0'
 
-# Certain statuses should result in the LEDS blinking.  Inclimate weather conditions
-# and failure to fetch current weather info seem to fit the bill.
-BLINKING_CATEGORIES = set([FlightCategory.LIFR, FlightCategory.UNKNOWN])
-
 
 def init_logger():
     log.setLevel(logging.DEBUG)
@@ -159,25 +155,15 @@ def get_flight_category(visibility, ceiling):
 
 
 def render_leds(leds):
-    """Responsible for updating the LEDS.
-
-    This is in a separate thread so that the blinking lights can be running
-    without interfering with the periodic refresh of the METAR data.
-    """
-    blink_period = 1.0
+    """Responsible for updating the LEDS."""
+    period = 1.0
 
     while True:
         for airport in AIRPORTS:
             color = airport.category.value
             leds.setPixelColor(airport.index, color)
         leds.show()
-        time.sleep(blink_period / 2)
-
-        for airport in AIRPORTS:
-            color = airport.category.value if airport.category not in BLINKING_CATEGORIES else BLACK
-            leds.setPixelColor(airport.index, color)
-        leds.show()
-        time.sleep(blink_period / 2)
+        time.sleep(period)
 
 
 def refresh_metar():
