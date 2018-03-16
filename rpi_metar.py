@@ -154,19 +154,7 @@ def get_flight_category(visibility, ceiling):
     raise ValueError
 
 
-def render_leds(leds):
-    """Responsible for updating the LEDS."""
-    period = 1.0
-
-    while True:
-        for airport in AIRPORTS:
-            color = airport.category.value
-            leds.setPixelColor(airport.index, color)
-        leds.show()
-        time.sleep(period)
-
-
-def refresh_metar():
+def run(leds):
     """Fetches new METAR information and updates the airport LEDS with the current info."""
 
     while True:
@@ -187,7 +175,11 @@ def refresh_metar():
             except (TypeError, ValueError):
                 log.exception("Failed to get flight category from %s, %s", airport.visibility, airport.ceiling)
                 airport.category = FlightCategory.UNKNOWN
+            finally:
+                color = airport.category.value
+                leds.setPixelColor(airport.index, color)
 
+        leds.show()
         log.info(AIRPORTS)
         time.sleep(METAR_REFRESH_RATE)
 
@@ -220,29 +212,12 @@ def main():
     leds.begin()
     all_off(leds)
 
-    # Install a signal handler so that when systemd kills this program, we aren't
-    # left with LEDs in a state implying that it's still running.
-    def handler(signum, frame):
-        log.info('Shutting down.')
+
+    try:
+        run(leds)
+    except:
+        log.exception('Unexpected exception, shutting down.')
         all_off(leds)
-        sys.exit()
-    signal.signal(signal.SIGTERM, handler)
-
-    threads = [
-        threading.Thread(name='render_leds', target=render_leds, args=(leds,)),
-        threading.Thread(name='refresh_metar', target=refresh_metar),
-    ]
-
-    for thread in threads:
-        thread.daemon = True
-        thread.start()
-
-    # If either the render or the refresh thread dies, this program should
-    # exit so that systemd will restart it.
-    while threading.active_count() == len(threads) + 1:  # main thread too!
-        time.sleep(1.0)
-
-    all_off(leds)
 
 
 if __name__ == '__main__':
