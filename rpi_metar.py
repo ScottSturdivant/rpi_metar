@@ -165,6 +165,8 @@ def run(leds):
             log.exception('Failed to retrieve metar info.')
             for airport in AIRPORTS:
                 airport.category = FlightCategory.UNKNOWN
+            # Visually indicate a failure to refresh the data.
+            set_all(leds, YELLOW)
             time.sleep(METAR_REFRESH_RATE)
             continue
 
@@ -184,10 +186,10 @@ def run(leds):
         time.sleep(METAR_REFRESH_RATE)
 
 
-def all_off(leds):
-    """Sets all leds off."""
+def set_all(leds, color=BLACK):
+    """Sets all leds to a specific color."""
     for i in range(leds.numPixels()):
-        leds.setPixelColor(i, BLACK)
+        leds.setPixelColor(i, color)
     leds.show()
 
 
@@ -210,14 +212,14 @@ def main():
 
     leds = PixelStrip(max((airport.index for airport in AIRPORTS)) + 1, 18, gamma=GAMMA)
     leds.begin()
-    all_off(leds)
-
+    set_all(leds, BLACK)
+    set_all(leds, YELLOW)
 
     try:
         run(leds)
     except:
         log.exception('Unexpected exception, shutting down.')
-        all_off(leds)
+        set_all(leds, BLACK)
 
 
 if __name__ == '__main__':
