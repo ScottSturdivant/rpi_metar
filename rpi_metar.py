@@ -99,7 +99,7 @@ def get_metar_info(airport_codes):
     url = URL.format(airport_codes=','.join(airport_codes))
     log.debug(url)
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=2.0)
         response.raise_for_status()
     except:  # noqa
         log.exception('Metar query failure.')
