@@ -213,7 +213,10 @@ def main():
     leds = PixelStrip(max((airport.index for airport in AIRPORTS)) + 1, 18, gamma=GAMMA)
     leds.begin()
     set_all(leds, BLACK)
-    set_all(leds, YELLOW)
+
+    for airport in AIRPORTS:
+        leds.setPixelColor(airport.index, YELLOW)
+    leds.show()
 
     try:
         run(leds)
