@@ -13,7 +13,7 @@ except ImportError:
 setup(
     name='rpi_metar',
     py_modules=['rpi_metar'],
-    version='0.1.6',
+    version='0.1.7',
     description='Visualizing METAR data on a Raspberry Pi with LEDs.',
     keywords=['METAR', 'Raspberry Pi'],
     author='Scott Sturdivant',
