@@ -106,6 +106,7 @@ def get_metar_info(airport_codes):
 
 def get_conditions(metar_info, airport_code):
     """Returns the visibility and ceiling for a given airport from some metar info."""
+    log.debug('Scanning conditions for %s', airport_code)
     visibility = ceiling = None
     for line in metar_info.splitlines():
         if line.startswith(airport_code):
