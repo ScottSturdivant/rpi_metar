@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 from fractions import Fraction
-import threading
 import requests
 import logging
 import logging.handlers
 import re
-import signal
-import sys
 import time
 from enum import Enum
 from configparser import ConfigParser
