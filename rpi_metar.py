@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 from fractions import Fraction
-import threading
 import requests
 import logging
 import logging.handlers
 import re
-import signal
-import sys
 import time
 from enum import Enum
 from configparser import ConfigParser
@@ -109,6 +106,7 @@ def get_metar_info(airport_codes):
 
 def get_conditions(metar_info, airport_code):
     """Returns the visibility and ceiling for a given airport from some metar info."""
+    log.debug('Scanning conditions for %s', airport_code)
     visibility = ceiling = None
     for line in metar_info.splitlines():
         if line.startswith(airport_code):
@@ -213,7 +211,10 @@ def main():
     leds = PixelStrip(max((airport.index for airport in AIRPORTS)) + 1, 18, gamma=GAMMA)
     leds.begin()
     set_all(leds, BLACK)
-    set_all(leds, YELLOW)
+
+    for airport in AIRPORTS:
+        leds.setPixelColor(airport.index, YELLOW)
+    leds.show()
 
     try:
         run(leds)
