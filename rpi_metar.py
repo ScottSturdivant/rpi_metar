@@ -9,6 +9,7 @@ from enum import Enum
 from configparser import ConfigParser
 from retrying import retry
 from rpi_ws281x import PixelStrip, Color
+from xmltodict import parse as parsexml
 
 
 log = logging.getLogger(__name__)
@@ -60,23 +61,32 @@ class Airport(object):
         self.index = led_index
         self.visibility = None
         self.ceiling = None
+        self.raw = None
         self.category = FlightCategory.UNKNOWN
 
     def __repr__(self):
-        return '<{code} @ {index}: VIS={vis} CEIL={ceil} -> {cat}>'.format(
+        return '<{code} @ {index}: {raw} -> {cat}>'.format(
             code=self.code,
             index=self.index,
-            vis=self.visibility,
-            ceil=self.ceiling,
+            raw=self.raw,
             cat=self.category.name
         )
 
 
 # A collection of the airports we'll ultimately be tracking.
-AIRPORTS = []
+AIRPORTS = {}
 
 # Where we'll be fetching the METAR info from.
-URL = 'http://www.aviationweather.gov/metar/data?ids={airport_codes}&format=raw&hours=0&taf=off&layout=off&date=0'
+URL = (
+    'https://www.aviationweather.gov/adds/dataserver_current/httpparam'
+    '?dataSource=metars'
+    '&requestType=retrieve'
+    '&format=xml'
+    '&stationString={airport_codes}'
+    '&hoursBeforeNow=2'
+    '&mostRecentForEachStation=true'
+    '&fields=flight_category,station_id,raw_text'
+)
 
 
 def init_logger():
@@ -91,42 +101,49 @@ def init_logger():
        wait_exponential_max=10000,
        stop_max_attempt_number=10)
 def get_metar_info(airport_codes):
-    """Queries the METAR service."""
+    """Queries the METAR service.
+
+    Returns a list of dicts.
+    """
     log.info("Getting METAR info.")
     url = URL.format(airport_codes=','.join(airport_codes))
     log.debug(url)
     try:
-        response = requests.get(url, timeout=2.0)
+        response = requests.get(url, timeout=10.0)
         response.raise_for_status()
     except:  # noqa
         log.exception('Metar query failure.')
         raise
+
+    try:
+        response = parsexml(response.text)['response']['data']['METAR']
+    except:
+        log.exception('Metar response is invalid.')
+        raise
+
     return response
 
 
-def get_conditions(metar_info, airport_code):
+def get_conditions(metar_info):
     """Returns the visibility and ceiling for a given airport from some metar info."""
-    log.debug('Scanning conditions for %s', airport_code)
+    log.debug(metar_info)
     visibility = ceiling = None
-    for line in metar_info.splitlines():
-        if line.startswith(airport_code):
-            log.debug(line)
-            # Visibility
-            # We may have fractions, e.g. 1/8SM or 1 1/2SM
-            # Or it will be whole numbers, e.g. 2SM
-            # There's also variable wind speeds, followed by vis, e.g. 300V360 1/2SM
-            match = re.search(r'(?P<visibility>(?:\b\d+\s+)?\d+(?:/\d)?)SM', line)
-            if match:
-                visibility = match.group('visibility')
-                try:
-                    visibility = float(sum(Fraction(s) for s in visibility.split()))
-                except ZeroDivisionError:
-                    visibility = None
-            # Ceiling
-            match = re.search(r'(VV|BKN|OVC)(?P<ceiling>\d{3})', line)
-            if match:
-                ceiling = int(match.group('ceiling')) * 100  # It is reported in hundreds of feet
-            return visibility, ceiling
+    # Visibility
+    # We may have fractions, e.g. 1/8SM or 1 1/2SM
+    # Or it will be whole numbers, e.g. 2SM
+    # There's also variable wind speeds, followed by vis, e.g. 300V360 1/2SM
+    match = re.search(r'(?P<visibility>(?:\b\d+\s+)?\d+(?:/\d)?)SM', metar_info)
+    if match:
+        visibility = match.group('visibility')
+        try:
+            visibility = float(sum(Fraction(s) for s in visibility.split()))
+        except ZeroDivisionError:
+            visibility = None
+    # Ceiling
+    match = re.search(r'(VV|BKN|OVC)(?P<ceiling>\d{3})', metar_info)
+    if match:
+        ceiling = int(match.group('ceiling')) * 100  # It is reported in hundreds of feet
+        return visibility, ceiling
     return (visibility, ceiling)
 
 
@@ -158,7 +175,7 @@ def run(leds):
     while True:
 
         try:
-            info = get_metar_info([airport.code for airport in AIRPORTS])
+            metars = get_metar_info(AIRPORTS.keys())
         except:  # noqa
             log.exception('Failed to retrieve metar info.')
             for airport in AIRPORTS:
@@ -168,19 +185,33 @@ def run(leds):
             time.sleep(METAR_REFRESH_RATE)
             continue
 
-        for airport in AIRPORTS:
-            airport.visibility, airport.ceiling = get_conditions(info.content.decode('utf-8'), airport.code)
+        metars = {m['station_id']: m for m in metars}
+
+        for airport in AIRPORTS.values():
             try:
-                airport.category = get_flight_category(airport.visibility, airport.ceiling)
-            except (TypeError, ValueError):
-                log.exception("Failed to get flight category from %s, %s", airport.visibility, airport.ceiling)
+                metar = metars[airport.code]
+                log.debug(metar)
+                airport.raw = metar['raw_text']
+            except KeyError:
+                log.exception('%s has no data.', airport.code)
                 airport.category = FlightCategory.UNKNOWN
+            else:
+                try:
+                    airport.category = FlightCategory[metar['flight_category']]
+                except KeyError:
+                    log.exception('%s does not have flight category field, falling back to raw text parsing.', airport.code)
+                    airport.visibility, airport.ceiling = get_conditions(metar['raw_text'])
+                    try:
+                        airport.category = get_flight_category(airport.visibility, airport.ceiling)
+                    except (TypeError, ValueError):
+                        log.exception("Failed to get flight category from %s, %s", airport.visibility, airport.ceiling)
+                        airport.category = FlightCategory.UNKNOWN
             finally:
                 color = airport.category.value
                 leds.setPixelColor(airport.index, color)
 
         leds.show()
-        log.info(AIRPORTS)
+        log.info(sorted(AIRPORTS.values(), key=lambda x: x.index))
         time.sleep(METAR_REFRESH_RATE)
 
 
@@ -199,7 +230,7 @@ def load_configuration():
 
     for code in cfg.options('airports'):
         index = cfg.getint('airports', code)
-        AIRPORTS.append(Airport(code, index))
+        AIRPORTS[code] = Airport(code, index)
 
 
 def main():
@@ -208,17 +239,18 @@ def main():
 
     load_configuration()
 
-    leds = PixelStrip(max((airport.index for airport in AIRPORTS)) + 1, 18, gamma=GAMMA)
+    leds = PixelStrip(max((airport.index for airport in AIRPORTS.values())) + 1, 18, gamma=GAMMA)
     leds.begin()
     set_all(leds, BLACK)
 
-    for airport in AIRPORTS:
+    for airport in AIRPORTS.values():
         leds.setPixelColor(airport.index, YELLOW)
     leds.show()
+    run(leds)
 
     try:
         run(leds)
-    except:
+    except Exception as e:
         log.exception('Unexpected exception, shutting down.')
         set_all(leds, BLACK)
 
