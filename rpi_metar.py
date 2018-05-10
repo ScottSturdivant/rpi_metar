@@ -132,7 +132,7 @@ def get_conditions(metar_info):
     # We may have fractions, e.g. 1/8SM or 1 1/2SM
     # Or it will be whole numbers, e.g. 2SM
     # There's also variable wind speeds, followed by vis, e.g. 300V360 1/2SM
-    match = re.search(r'(?P<visibility>(?:\b\d+\s+)?\d+(?:/\d)?)SM', metar_info)
+    match = re.search(r'(?P<visibility>\b(?:\d+\s+)?\d+(?:/\d)?)SM', metar_info)
     if match:
         visibility = match.group('visibility')
         try:
