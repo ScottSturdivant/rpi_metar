@@ -178,10 +178,11 @@ def run(leds):
             metars = get_metar_info(AIRPORTS.keys())
         except:  # noqa
             log.exception('Failed to retrieve metar info.')
-            for airport in AIRPORTS:
+            for airport in AIRPORTS.values():
                 airport.category = FlightCategory.UNKNOWN
-            # Visually indicate a failure to refresh the data.
-            set_all(leds, YELLOW)
+                # Visually indicate a failure to refresh the data.
+                leds.setPixelColor(airport.index, color)
+            leds.show()
             time.sleep(METAR_REFRESH_RATE)
             continue
 
