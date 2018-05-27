@@ -244,7 +244,10 @@ def load_configuration():
     if 'khlx' in cfg['airports']:
         cfg['airports']['klhx'] = cfg['airports'].pop('khlx')
         with open('/etc/rpi_metar.conf', 'w') as f:
-            cfg.write(f)
+            try:
+                cfg.write(f)
+            except:
+                pass
 
     for code in cfg.options('airports'):
 
