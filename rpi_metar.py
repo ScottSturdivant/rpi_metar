@@ -72,6 +72,12 @@ class Airport(object):
             cat=self.category.name
         )
 
+    def reset(self):
+        self.visibility = None
+        self.ceiling = None
+        self.raw = None
+        self.category = FlightCategory.UNKNOWN
+
 
 # A collection of the airports we'll ultimately be tracking.
 AIRPORTS = {}
@@ -181,6 +187,7 @@ def run(leds):
             for airport in AIRPORTS.values():
                 airport.category = FlightCategory.UNKNOWN
                 # Visually indicate a failure to refresh the data.
+                color = airport.category.value
                 leds.setPixelColor(airport.index, color)
             leds.show()
             time.sleep(METAR_REFRESH_RATE)
@@ -189,6 +196,10 @@ def run(leds):
         metars = {m['station_id']: m for m in metars}
 
         for airport in AIRPORTS.values():
+
+            # Make sure the previous iteration is cleared out.
+            airport.reset()
+
             try:
                 metar = metars[airport.code]
                 log.debug(metar)
@@ -229,7 +240,17 @@ def load_configuration():
     cfg = ConfigParser()
     cfg.read(cfg_files)
 
+    # Fix typo in CO map cfg
+    if 'khlx' in cfg['airports']:
+        cfg['airports']['klhx'] = cfg['airports'].pop('khlx')
+        with open('/etc/rpi_metar.conf', 'w') as f:
+            try:
+                cfg.write(f)
+            except:
+                pass
+
     for code in cfg.options('airports'):
+
         index = cfg.getint('airports', code)
         AIRPORTS[code] = Airport(code, index)
 
