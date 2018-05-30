@@ -7,6 +7,10 @@ Pi, some WS281X LEDs, and the four letter designators of the airports you are in
 This code assumes you've connected to GPIO 18 (PWM0) and have added `blacklist snd_bcm2835` to the
 `/etc/modprobe.d/snd-blacklist.conf` file.
 
+Don't want to DIY it? This is the code that powers the
+[Aviation Weather Maps](https://aviationweathermaps.com) products. Enjoy a premade product, or
+continue reading and happy tinkering!
+
 # Install
 
 ```
