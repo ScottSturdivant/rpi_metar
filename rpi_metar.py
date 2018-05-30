@@ -4,6 +4,7 @@ import requests
 import logging
 import logging.handlers
 import re
+import socket
 import time
 from enum import Enum
 from configparser import ConfigParser
@@ -96,11 +97,31 @@ URL = (
 
 
 def init_logger():
+
+
+    class ContextFilter(logging.Filter):
+        hostname = socket.gethostname()
+
+        def filter(self, record):
+            record.hostname = ContextFilter.hostname
+            return True
+
+    log.addFilter(ContextFilter())
+
     log.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler = logging.handlers.SysLogHandler(address='/dev/log')
     handler.setFormatter(formatter)
     log.addHandler(handler)
+
+    papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
+    formatter = logging.Formatter('%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(message)s',
+        datefmt='%b %d %H:%M:%S'
+    )
+
+    papertrail.setFormatter(formatter)
+    papertrail.setLevel(logging.INFO)
+    log.addHandler(papertrail)
 
 
 @retry(wait_exponential_multiplier=1000,
@@ -111,9 +132,9 @@ def get_metar_info(airport_codes):
 
     Returns a list of dicts.
     """
-    log.info("Getting METAR info.")
+    log.debug("Getting METAR info.")
     url = URL.format(airport_codes=','.join(airport_codes))
-    log.debug(url)
+    log.info(url)
     try:
         response = requests.get(url, timeout=10.0)
         response.raise_for_status()
