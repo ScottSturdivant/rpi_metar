@@ -115,7 +115,8 @@ def init_logger():
     log.addHandler(handler)
 
     papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
-    formatter = logging.Formatter('%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(message)s',
+    formatter = logging.Formatter(
+        '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(message)s',
         datefmt='%b %d %H:%M:%S'
     )
 
