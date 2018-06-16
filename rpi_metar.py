@@ -92,7 +92,6 @@ URL = (
     '&stationString={airport_codes}'
     '&hoursBeforeNow=2'
     '&mostRecentForEachStation=true'
-    '&fields=flight_category,station_id,raw_text'
 )
 
 
@@ -115,7 +114,8 @@ def init_logger():
     log.addHandler(handler)
 
     papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
-    formatter = logging.Formatter('%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(message)s',
+    formatter = logging.Formatter(
+        '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(message)s',
         datefmt='%b %d %H:%M:%S'
     )
 
@@ -261,17 +261,7 @@ def load_configuration():
     cfg = ConfigParser()
     cfg.read(cfg_files)
 
-    # Fix typo in CO map cfg
-    if 'khlx' in cfg['airports']:
-        cfg['airports']['klhx'] = cfg['airports'].pop('khlx')
-        with open('/etc/rpi_metar.conf', 'w') as f:
-            try:
-                cfg.write(f)
-            except:
-                pass
-
     for code in cfg.options('airports'):
-
         index = cfg.getint('airports', code)
         AIRPORTS[code] = Airport(code, index)
 
