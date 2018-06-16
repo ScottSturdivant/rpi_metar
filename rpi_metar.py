@@ -92,7 +92,6 @@ URL = (
     '&stationString={airport_codes}'
     '&hoursBeforeNow=2'
     '&mostRecentForEachStation=true'
-    '&fields=flight_category,station_id,raw_text'
 )
 
 
