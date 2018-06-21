@@ -265,14 +265,21 @@ def load_configuration():
         index = cfg.getint('airports', code)
         AIRPORTS[code] = Airport(code, index)
 
+    return cfg
+
 
 def main():
 
     init_logger()
 
-    load_configuration()
+    cfg = load_configuration()
 
-    leds = PixelStrip(max((airport.index for airport in AIRPORTS.values())) + 1, 18, gamma=GAMMA)
+    leds = PixelStrip(
+        num=max((airport.index for airport in AIRPORTS.values())) + 1,
+        pin=18,
+        gamma=GAMMA,
+        brightness=int(cfg.get('settings', 'brightness', fallback=128))
+    )
     leds.begin()
     set_all(leds, BLACK)
 
