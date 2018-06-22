@@ -3,6 +3,7 @@ from fractions import Fraction
 import requests
 import logging
 import logging.handlers
+import pkg_resources
 import re
 import socket
 import time
@@ -14,6 +15,8 @@ from xmltodict import parse as parsexml
 
 
 log = logging.getLogger(__name__)
+
+VERSION = pkg_resources.get_distribution('rpi_metar').version
 
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
 
@@ -97,25 +100,25 @@ URL = (
 
 def init_logger():
 
-
     class ContextFilter(logging.Filter):
         hostname = socket.gethostname()
 
         def filter(self, record):
             record.hostname = ContextFilter.hostname
+            record.version = VERSION
             return True
 
     log.addFilter(ContextFilter())
 
     log.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(version)s - %(message)s')
     handler = logging.handlers.SysLogHandler(address='/dev/log')
     handler.setFormatter(formatter)
     log.addHandler(handler)
 
     papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
     formatter = logging.Formatter(
-        '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(message)s',
+        '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(version)s %(message)s',
         datefmt='%b %d %H:%M:%S'
     )
 
@@ -265,14 +268,21 @@ def load_configuration():
         index = cfg.getint('airports', code)
         AIRPORTS[code] = Airport(code, index)
 
+    return cfg
+
 
 def main():
 
     init_logger()
 
-    load_configuration()
+    cfg = load_configuration()
 
-    leds = PixelStrip(max((airport.index for airport in AIRPORTS.values())) + 1, 18, gamma=GAMMA)
+    leds = PixelStrip(
+        num=max((airport.index for airport in AIRPORTS.values())) + 1,
+        pin=18,
+        gamma=GAMMA,
+        brightness=int(cfg.get('settings', 'brightness', fallback=128))
+    )
     leds.begin()
     set_all(leds, BLACK)
 
