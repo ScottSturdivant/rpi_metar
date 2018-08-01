@@ -3,6 +3,7 @@ from fractions import Fraction
 import requests
 import logging
 import logging.handlers
+import os
 import pkg_resources
 import re
 import socket
@@ -19,6 +20,7 @@ log = logging.getLogger(__name__)
 VERSION = pkg_resources.get_distribution('rpi_metar').version
 
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
+FAILURE_THRESHOLD = 3  # How many times do we not get data before we reboot
 
 # The rpi_ws281x library initializes the strip as GRB.
 GREEN = Color(255, 0, 0)
@@ -199,8 +201,19 @@ def get_flight_category(visibility, ceiling):
     raise ValueError
 
 
+def is_internet_up():
+    try:
+        response = requests.get('http://google.com', timeout=10.0)
+        response.raise_for_status()
+    except:  # noqa
+        return False
+    return True
+
+
 def run(leds):
     """Fetches new METAR information and updates the airport LEDS with the current info."""
+
+    failure_count = 0
 
     while True:
 
@@ -208,14 +221,30 @@ def run(leds):
             metars = get_metar_info(AIRPORTS.keys())
         except:  # noqa
             log.exception('Failed to retrieve metar info.')
+
+            # Visually indicate a failure to refresh the data.
             for airport in AIRPORTS.values():
                 airport.category = FlightCategory.UNKNOWN
-                # Visually indicate a failure to refresh the data.
                 color = airport.category.value
                 leds.setPixelColor(airport.index, color)
             leds.show()
+
+            # Some of the raspberry pis lose their wifi after some time and fail to automatically
+            # reconnect. This is a workaround for that case. If we've failed a lot, just reboot.
+            # We do need to make sure we're not rebooting too soon (as would be the case for
+            # initial setup).
+            failure_count += 1
+
+            # If other web services are available, it's just the NOAA site having problems so we
+            # don't need to reboot.
+            if failure_count >= FAILURE_THRESHOLD and not is_internet_up():
+                log.warning('Internet is not up, rebooting.')
+                os.system('reboot')
+
             time.sleep(METAR_REFRESH_RATE)
             continue
+
+        failure_count = 0
 
         metars = {m['station_id']: m for m in metars}
 
