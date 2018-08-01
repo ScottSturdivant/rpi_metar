@@ -36,6 +36,15 @@ KBOS = 1
 The LED indexes can be skipped and do not need to be continuous.  If you don't have an LED
 associated with an airport, it does not need to be entered.
 
+You may also control the intensity of the LEDs via the configuration file. There must be a
+`[settings]` section. Within there, a brightness can be set (integer values from 0 to 255). In a
+well lit room, 75 or 85 are recommended. In a brighter room, try 128.
+
+```
+[settings]
+brightness = 85
+```
+
 # Autostart
 
 Create the `/etc/systemd/system/rpi_metar.service` file with the following contents:
