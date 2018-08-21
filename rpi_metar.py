@@ -89,8 +89,18 @@ class Airport(object):
 AIRPORTS = {}
 
 # Where we'll be fetching the METAR info from.
-URL = (
+URL1 = (
     'https://www.aviationweather.gov/adds/dataserver_current/httpparam'
+    '?dataSource=metars'
+    '&requestType=retrieve'
+    '&format=xml'
+    '&stationString={airport_codes}'
+    '&hoursBeforeNow=2'
+    '&mostRecentForEachStation=true'
+)
+
+URL2 = (
+    'https://bcaws.aviationweather.gov/adds/dataserver_current/httpparam'
     '?dataSource=metars'
     '&requestType=retrieve'
     '&format=xml'
@@ -132,13 +142,13 @@ def init_logger():
 @retry(wait_exponential_multiplier=1000,
        wait_exponential_max=10000,
        stop_max_attempt_number=10)
-def get_metar_info(airport_codes):
+def get_metar_info(url, airport_codes):
     """Queries the METAR service.
 
     Returns a list of dicts.
     """
     log.debug("Getting METAR info.")
-    url = URL.format(airport_codes=','.join(airport_codes))
+    url = url.format(airport_codes=','.join(airport_codes))
     log.info(url)
     try:
         response = requests.get(url, timeout=10.0)
@@ -217,11 +227,17 @@ def run(leds):
 
     while True:
 
-        try:
-            metars = get_metar_info(AIRPORTS.keys())
-        except:  # noqa
-            log.exception('Failed to retrieve metar info.')
+        metars = None
 
+        for url in [URL1, URL2]:
+
+            try:
+                metars = get_metar_info(url, AIRPORTS.keys())
+            except:  # noqa
+                log.exception('Failed to retrieve metar info.')
+                continue
+
+        if metars is None:
             # Visually indicate a failure to refresh the data.
             for airport in AIRPORTS.values():
                 airport.category = FlightCategory.UNKNOWN
