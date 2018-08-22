@@ -13,6 +13,7 @@ from configparser import ConfigParser
 from retrying import retry
 from rpi_ws281x import PixelStrip, Color
 from xmltodict import parse as parsexml
+from rpi_metar import cron
 
 
 log = logging.getLogger(__name__)
@@ -319,6 +320,8 @@ def load_configuration():
 def main():
 
     init_logger()
+
+    cron.set_upgrade_schedule()
 
     cfg = load_configuration()
 
