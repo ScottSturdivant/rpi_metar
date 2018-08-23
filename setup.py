@@ -44,4 +44,5 @@ setup(
     },
     python_requires='>=3',
     zip_safe=False,
+    data_files=[('data', ['data/us-airports.csv'])],
 )
