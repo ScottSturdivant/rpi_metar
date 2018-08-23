@@ -4,9 +4,7 @@ import requests
 import logging
 import logging.handlers
 import os
-import pkg_resources
 import re
-import socket
 import time
 from enum import Enum
 from configparser import ConfigParser
@@ -17,7 +15,6 @@ from rpi_metar import sources
 
 log = logging.getLogger(__name__)
 
-VERSION = pkg_resources.get_distribution('rpi_metar').version
 
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
 FAILURE_THRESHOLD = 3  # How many times do we not get data before we reboot
@@ -87,35 +84,6 @@ class Airport(object):
 
 # A collection of the airports we'll ultimately be tracking.
 AIRPORTS = {}
-
-
-def init_logger():
-
-    class ContextFilter(logging.Filter):
-        hostname = socket.gethostname()
-
-        def filter(self, record):
-            record.hostname = ContextFilter.hostname
-            record.version = VERSION
-            return True
-
-    log.addFilter(ContextFilter())
-
-    log.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(version)s - %(message)s')
-    handler = logging.handlers.SysLogHandler(address='/dev/log')
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-
-    papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
-    formatter = logging.Formatter(
-        '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(version)s %(message)s',
-        datefmt='%b %d %H:%M:%S'
-    )
-
-    papertrail.setFormatter(formatter)
-    papertrail.setLevel(logging.INFO)
-    log.addHandler(papertrail)
 
 
 def get_conditions(metar_info):
@@ -270,8 +238,6 @@ def load_configuration():
 
 
 def main():
-
-    init_logger()
 
     cron.set_upgrade_schedule()
 
