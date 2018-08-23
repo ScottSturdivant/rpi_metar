@@ -24,7 +24,7 @@ CLASSIFIERS = [
 
 setup(
     name=NAME,
-    version='0.1.15',
+    version='0.1.15dev1',
     packages=PACKAGES,
     package_dir={'': 'src'},
     include_package_data=True,
