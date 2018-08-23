@@ -13,7 +13,7 @@ except ImportError:
 ###############################################################################
 
 NAME = 'rpi_metar'
-PACKAGES = find_packages(where='src')
+PACKAGES = find_packages()
 CLASSIFIERS = [
     'Development Status :: 4 - Beta',
     'License :: OSI Approved :: MIT License',
@@ -24,9 +24,10 @@ CLASSIFIERS = [
 
 setup(
     name=NAME,
-    version='0.1.15dev1',
+    version='0.1.15dev10',
     packages=PACKAGES,
-    package_dir={'': 'src'},
+    #package_dir={'': 'src'},
+    #package_data={NAME: 'data/us-airports.csv'},
     include_package_data=True,
     description='Visualizing METAR data on a Raspberry Pi with LEDs.',
     keywords=['METAR', 'Raspberry Pi'],
@@ -44,5 +45,4 @@ setup(
     },
     python_requires='>=3',
     zip_safe=False,
-    data_files=[('data', ['data/us-airports.csv'])],
 )
