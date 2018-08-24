@@ -4,20 +4,17 @@ import requests
 import logging
 import logging.handlers
 import os
-import pkg_resources
 import re
-import socket
 import time
 from enum import Enum
 from configparser import ConfigParser
-from retrying import retry
 from rpi_ws281x import PixelStrip, Color
-from xmltodict import parse as parsexml
+from rpi_metar import cron
+from rpi_metar import sources
 
 
 log = logging.getLogger(__name__)
 
-VERSION = pkg_resources.get_distribution('rpi_metar').version
 
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
 FAILURE_THRESHOLD = 3  # How many times do we not get data before we reboot
@@ -88,83 +85,6 @@ class Airport(object):
 # A collection of the airports we'll ultimately be tracking.
 AIRPORTS = {}
 
-# Where we'll be fetching the METAR info from.
-URL1 = (
-    'https://www.aviationweather.gov/adds/dataserver_current/httpparam'
-    '?dataSource=metars'
-    '&requestType=retrieve'
-    '&format=xml'
-    '&stationString={airport_codes}'
-    '&hoursBeforeNow=2'
-    '&mostRecentForEachStation=true'
-)
-
-URL2 = (
-    'https://bcaws.aviationweather.gov/adds/dataserver_current/httpparam'
-    '?dataSource=metars'
-    '&requestType=retrieve'
-    '&format=xml'
-    '&stationString={airport_codes}'
-    '&hoursBeforeNow=2'
-    '&mostRecentForEachStation=true'
-)
-
-
-def init_logger():
-
-    class ContextFilter(logging.Filter):
-        hostname = socket.gethostname()
-
-        def filter(self, record):
-            record.hostname = ContextFilter.hostname
-            record.version = VERSION
-            return True
-
-    log.addFilter(ContextFilter())
-
-    log.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(version)s - %(message)s')
-    handler = logging.handlers.SysLogHandler(address='/dev/log')
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-
-    papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
-    formatter = logging.Formatter(
-        '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(version)s %(message)s',
-        datefmt='%b %d %H:%M:%S'
-    )
-
-    papertrail.setFormatter(formatter)
-    papertrail.setLevel(logging.INFO)
-    log.addHandler(papertrail)
-
-
-@retry(wait_exponential_multiplier=1000,
-       wait_exponential_max=10000,
-       stop_max_attempt_number=10)
-def get_metar_info(url, airport_codes):
-    """Queries the METAR service.
-
-    Returns a list of dicts.
-    """
-    log.debug("Getting METAR info.")
-    url = url.format(airport_codes=','.join(airport_codes))
-    log.info(url)
-    try:
-        response = requests.get(url, timeout=10.0)
-        response.raise_for_status()
-    except:  # noqa
-        log.exception('Metar query failure.')
-        raise
-
-    try:
-        response = parsexml(response.text)['response']['data']['METAR']
-    except:
-        log.exception('Metar response is invalid.')
-        raise
-
-    return response
-
 
 def get_conditions(metar_info):
     """Returns the visibility and ceiling for a given airport from some metar info."""
@@ -227,17 +147,22 @@ def run(leds):
 
     while True:
 
-        metars = None
+        airports = AIRPORTS.keys()
 
-        for url in [URL1, URL2]:
+        data_sources = [
+            sources.NOAA(airports),
+            sources.NOAA(airports, 'bcaws'),
+            sources.SkyVector(airports),
+        ]
 
+        for source in data_sources:
             try:
-                metars = get_metar_info(url, AIRPORTS.keys())
+                metars = source.get_metar_info()
+                failure_count = 0
+                break
             except:  # noqa
                 log.exception('Failed to retrieve metar info.')
-                continue
-
-        if metars is None:
+        else:  # No data sources returned any info
             # Visually indicate a failure to refresh the data.
             for airport in AIRPORTS.values():
                 airport.category = FlightCategory.UNKNOWN
@@ -259,10 +184,6 @@ def run(leds):
 
             time.sleep(METAR_REFRESH_RATE)
             continue
-
-        failure_count = 0
-
-        metars = {m['station_id']: m for m in metars}
 
         for airport in AIRPORTS.values():
 
@@ -318,7 +239,7 @@ def load_configuration():
 
 def main():
 
-    init_logger()
+    cron.set_upgrade_schedule()
 
     cfg = load_configuration()
 
