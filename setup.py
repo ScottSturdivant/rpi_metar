@@ -24,10 +24,8 @@ CLASSIFIERS = [
 
 setup(
     name=NAME,
-    version='0.1.15dev10',
+    version='0.1.15dev12',
     packages=PACKAGES,
-    #package_dir={'': 'src'},
-    #package_data={NAME: 'data/us-airports.csv'},
     include_package_data=True,
     description='Visualizing METAR data on a Raspberry Pi with LEDs.',
     keywords=['METAR', 'Raspberry Pi'],
