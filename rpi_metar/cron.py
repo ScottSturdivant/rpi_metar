@@ -1,4 +1,8 @@
+import logging
+
 from crontab import CronTab
+
+log = logging.getLogger(__name__)
 
 
 def set_upgrade_schedule():
@@ -27,10 +31,13 @@ def set_upgrade_schedule():
         job = cron.new(command=cmd)
         job.every(1).days()
         changes_made = True
+        log.info('Adding daily update to cron.')
     if not reboot_found:
         job = cron.new(command=cmd)
         job.every_reboot()
         changes_made = True
+        log.info('Adding reboot update to cron.')
 
     if changes_made:
         cron.write()
+        log.info('Updated crontab.')

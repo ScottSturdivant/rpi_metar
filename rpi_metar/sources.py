@@ -16,7 +16,6 @@ class METARSource:
            stop_max_attempt_number=10)
     def _query(self):
         """Queries the NOAA METAR service."""
-        log.debug('Getting METAR info.')
         log.info(self.url)
         try:
             response = requests.get(self.url, timeout=10.0)

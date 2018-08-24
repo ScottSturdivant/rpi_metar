@@ -24,7 +24,7 @@ def init_logger():
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(version)s - %(message)s')
     handler = logging.handlers.SysLogHandler(address='/dev/log')
     handler.setFormatter(formatter)
-    handler.setFilter(ctx_filter)
+    handler.addFilter(ctx_filter)
     log.addHandler(handler)
 
     papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
@@ -35,7 +35,7 @@ def init_logger():
 
     papertrail.setFormatter(formatter)
     papertrail.setLevel(logging.INFO)
-    papertrail.setFilter(ctx_filter)
+    papertrail.addFilter(ctx_filter)
     log.addHandler(papertrail)
 
 
