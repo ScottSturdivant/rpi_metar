@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from rpi_metar import sources, core
-from rpi_ws281x import PixelStrip, Color
+from rpi_ws281x import PixelStrip
 import configparser
 
 
@@ -51,8 +51,8 @@ def main():
         airports[code] = i
         i += 1
 
-core.set_all(leds, core.BLACK)
-config['airports'] = airports
-with open(cfg_file, 'w') as f:
-    config.write(f)
-print('Wrote {file}'.format(file=cfg_file))
+    core.set_all(leds, core.BLACK)
+    config['airports'] = airports
+    with open(cfg_file, 'w') as f:
+        config.write(f)
+    print('Wrote {file}'.format(file=cfg_file))
