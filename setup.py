@@ -39,6 +39,7 @@ setup(
     entry_points={
         'console_scripts': [
             'rpi_metar = rpi_metar.core:main',
+            'rpi_metar_init = rpi_metar.scripts.init:main',
         ],
     },
     python_requires='>=3',
