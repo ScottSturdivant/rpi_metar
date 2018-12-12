@@ -46,6 +46,8 @@ class NOAA(METARSource):
         response = self._query()
         try:
             response = parsexml(response.text)['response']['data']['METAR']
+            if not isinstance(response, list):
+                response = [response]
         except:  # noqa
             log.exception('Metar response is invalid.')
             raise
