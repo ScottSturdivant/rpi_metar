@@ -36,10 +36,10 @@ def main():
             noaa.get_metar_info()
         except:
             prompt = None
-        while prompt not in ['k', 'r']:
-            prompt = input('{code} is invalid.  [k]eep or [r]etry '.format(code=code))
-        if prompt == 'r':
-            continue
+            while prompt not in ['k', 'r']:
+                prompt = input('{code} is invalid.  [k]eep or [r]etry '.format(code=code))
+            if prompt == 'r':
+                continue
 
         if code in airports:
             prompt = None
