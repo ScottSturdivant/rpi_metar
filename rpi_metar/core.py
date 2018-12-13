@@ -251,7 +251,7 @@ def main():
     }
     # Sometimes if we use LED strips from different batches, they behave differently with the gamma
     # controls and brightness levels. Therefore we need to be able to disable the gamma controls.
-    if not cfg.get('settings', 'disable_gamma', fallback=False):
+    if cfg.get('settings', 'disable_gamma', fallback=False):
         kwargs.pop('gamma')
 
     leds = PixelStrip(**kwargs)
