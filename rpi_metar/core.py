@@ -243,12 +243,18 @@ def main():
 
     cfg = load_configuration()
 
-    leds = PixelStrip(
-        num=max((airport.index for airport in AIRPORTS.values())) + 1,
-        pin=18,
-        gamma=GAMMA,
-        brightness=int(cfg.get('settings', 'brightness', fallback=128))
-    )
+    kwargs = {
+        'num': max((airport.index for airport in AIRPORTS.values())) + 1,
+        'pin': 18,
+        'gamma': GAMMA,
+        'brightness': int(cfg.get('settings', 'brightness', fallback=128))
+    }
+    # Sometimes if we use LED strips from different batches, they behave differently with the gamma
+    # controls and brightness levels. Therefore we need to be able to disable the gamma controls.
+    if not cfg.get('settings', 'disable_gamma', fallback=False):
+        kwargs.pop('gamma')
+
+    leds = PixelStrip(**kwargs)
     leds.begin()
     set_all(leds, BLACK)
 
