@@ -9,6 +9,12 @@ from xmltodict import parse as parsexml
 log = logging.getLogger(__name__)
 
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
 class METARSource:
 
     @retry(wait_exponential_multiplier=1000,
@@ -33,26 +39,35 @@ class NOAA(METARSource):
         '?dataSource=metars'
         '&requestType=retrieve'
         '&format=xml'
-        '&stationString={airport_codes}'
         '&hoursBeforeNow=2'
         '&mostRecentForEachStation=true'
+        '&stationString={airport_codes}'
     )
 
     def __init__(self, airport_codes, subdomain='www'):
-        self.url = self.URL.format(airport_codes=','.join(airport_codes), subdomain=subdomain)
+        self.airport_codes = airport_codes
+        self.subdomain = subdomain
 
     def get_metar_info(self):
         """Queries the NOAA METAR service."""
-        response = self._query()
-        try:
-            response = parsexml(response.text)['response']['data']['METAR']
-            if not isinstance(response, list):
-                response = [response]
-        except:  # noqa
-            log.exception('Metar response is invalid.')
-            raise
+        # NOAA can only handle so much at once, so split into chunks.
+        metars = {}
 
-        return {m['station_id']: m for m in response}
+        for chunk in chunks(self.airport_codes, 1000):
+            self.url = self.URL.format(airport_codes=','.join(chunk), subdomain=self.subdomain)
+            response = self._query()
+            try:
+                response = parsexml(response.text)['response']['data']['METAR']
+                if not isinstance(response, list):
+                    response = [response]
+            except:  # noqa
+                log.exception('Metar response is invalid.')
+                raise
+
+            for m in response:
+                metars[m['station_id']] = m
+
+        return metars
 
 
 class SkyVector(METARSource):
