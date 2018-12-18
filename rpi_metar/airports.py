@@ -65,7 +65,7 @@ class Airport(object):
     @category.setter
     def category(self, cat):
         if self._category != cat:
-            log.debug('Changing {self} to {cat}'.format(self=self, cat=cat))
+            log.info('Changing {self} to {cat}'.format(self=self, cat=cat))
             self._category = cat
             log.info('Setting category, putting {} onto queue.'.format(self.code))
             LED_QUEUE.put(self.code)

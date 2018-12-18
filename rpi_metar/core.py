@@ -24,7 +24,7 @@ LIGHTNING_STRIKE_RATE = 5  # How regularly should lightning strike, in seconds
 
 ENCODER_QUEUE = Queue()
 METAR_QUEUE = Queue()
-EVENT = threading.Event()
+ENCODER_EVENT = threading.Event()
 
 # A collection of the airports we'll ultimately be tracking.
 AIRPORTS = {}
@@ -237,7 +237,7 @@ def load_configuration():
 def on_turn(delta):
     """Let the brightness adjustment thread be aware that it needs to do something."""
     ENCODER_QUEUE.put(delta)
-    EVENT.set()
+    ENCODER_EVENT.set()
 
 
 def adjust_brightness(leds, cfg):
@@ -263,7 +263,7 @@ def adjust_brightness(leds, cfg):
     log.debug('Saved new brightness ({}) to cfg file.'.format(leds.getBrightness()))
 
     # Indicate that we've handled the event.
-    EVENT.clear()
+    ENCODER_EVENT.clear()
 
 
 def wait_for_knob(event, leds, cfg, timeout=120):
@@ -310,7 +310,7 @@ def main():
     leds.show()
 
     # Kick off a thread to handle adjusting the brightness
-    t1 = threading.Thread(name='brightness', target=wait_for_knob, args=(EVENT, leds, cfg))
+    t1 = threading.Thread(name='brightness', target=wait_for_knob, args=(ENCODER_EVENT, leds, cfg))
     t1.start()
 
     # A thread to fetch metar information periodically
