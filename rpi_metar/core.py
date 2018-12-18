@@ -8,7 +8,7 @@ import sys
 import time
 import threading
 from configparser import ConfigParser
-from rpi_ws281x import PixelStrip, Color
+from rpi_ws281x import PixelStrip
 from rpi_metar import cron, sources, encoder, wx
 from rpi_metar.leds import BLACK, YELLOW, GAMMA
 from rpi_metar.airports import FlightCategory, Airport, LED_QUEUE
@@ -21,6 +21,8 @@ log = logging.getLogger(__name__)
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
 WIND_DISPLAY_RATE = 5  # How often to show that it's windy, in seconds
 LIGHTNING_STRIKE_RATE = 5  # How regularly should lightning strike, in seconds
+
+FAILURE_THRESHOLD = 3  # How many times do we not get data before we reboot
 
 ENCODER_QUEUE = Queue()
 METAR_QUEUE = Queue()
@@ -241,7 +243,7 @@ def on_turn(delta):
 
 
 def adjust_brightness(leds, cfg):
-    while not QUEUE.empty():
+    while not ENCODER_QUEUE.empty():
         delta = ENCODER_QUEUE.get()
         log.debug('Adjusting brightness.')
         brightness = leds.getBrightness()
