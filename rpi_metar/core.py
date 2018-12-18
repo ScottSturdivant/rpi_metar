@@ -5,6 +5,7 @@ import logging
 import logging.handlers
 import os
 import re
+import random
 import signal
 import sys
 import time
@@ -22,7 +23,10 @@ log = logging.getLogger(__name__)
 
 
 METAR_REFRESH_RATE = 5 * 60  # How often METAR data should be fetched, in seconds
+LIGHTNING_STRIKE_RATE = 5  # How regularly should lightning strike, in seconds
 FAILURE_THRESHOLD = 3  # How many times do we not get data before we reboot
+MAX_WIND_SPEED_KTS = 20  # When it's too windy, in knots.
+WIND_DISPLAY_RATE = 5  # How often to show that it's windy, in seconds
 
 # The rpi_ws281x library initializes the strip as GRB.
 GREEN = Color(255, 0, 0)
@@ -31,8 +35,9 @@ BLUE = Color(0, 0, 255)
 MAGENTA = Color(0, 255, 255)
 YELLOW = Color(255, 255, 0)
 BLACK = Color(0, 0, 0)
+WHITE = Color(255, 255, 255)
 
-QUEUE = Queue()
+ENCODER_QUEUE = Queue()
 METAR_QUEUE = Queue()
 LED_QUEUE = Queue()
 EVENT = threading.Event()
@@ -75,7 +80,13 @@ class Airport(object):
         self.visibility = None
         self.ceiling = None
         self.raw = None
+        self.thunderstorms = False
+        self.wind_speed = 0
+        self.wind_gusts = 0
         self._category = FlightCategory.UNKNOWN
+        # Give each airport a lock. Since multiple threads may be trying to manipulate this LED
+        # at once, only one should win.
+        self.lock = threading.Lock()
 
     def __repr__(self):
         return '<{code} @ {index}: {raw} -> {cat}>'.format(
@@ -89,6 +100,13 @@ class Airport(object):
         self.visibility = None
         self.ceiling = None
         self.raw = None
+        self.thunderstorms = False
+        self.wind_speed = 0
+        self.wind_gusts = 0
+
+    @property
+    def windy(self):
+        return self.wind_speed > MAX_WIND_SPEED_KTS or self.wind_gusts > MAX_WIND_SPEED_KTS
 
     @property
     def category(self):
@@ -97,9 +115,29 @@ class Airport(object):
     @category.setter
     def category(self, cat):
         if self._category != cat:
+            log.debug('Changing {self} to {cat}'.format(self=self, cat=cat))
             self._category = cat
             log.info('Setting category, putting {} onto queue.'.format(self.code))
             LED_QUEUE.put(self.code)
+
+    def show_lightning(self, leds, strike_duration):
+        with self.lock:
+            leds.setPixelColor(self.index, WHITE)
+            leds.show()
+            time.sleep(strike_duration)
+
+            leds.setPixelColor(self.index, self.category.value)
+            leds.show()
+        log.exception('fuck')
+
+    def show_wind(self, leds, indicator_duration):
+        with self.lock:
+            leds.setPixelColor(self.index, YELLOW)
+            leds.show()
+            time.sleep(indicator_duration)
+
+            leds.setPixelColor(self.index, self.category.value)
+            leds.show()
 
 
 # A collection of the airports we'll ultimately be tracking.
@@ -232,6 +270,22 @@ def process_metars(queue, leds):
                 log.exception('%s has no data.', airport.code)
                 airport.category = FlightCategory.UNKNOWN
             else:
+                airport.thunderstorms = any(word in metar['raw_text'] for word in ['TSRA', 'VCTS'])
+                # For testing, let's randomly make some lightning
+                if random.randint(1, 101) < 15:
+                    airport.thunderstorms = True
+
+                # Wind info
+                try:
+                    airport.wind_speed = int(metar['wind_speed_kt'])
+                except KeyError:
+                    pass
+                try:
+                    airport.wind_gusts = int(metar['wind_gust_kt'])
+                except KeyError:
+                    pass
+
+                # Flight categories. First automatic, then manual parsing.
                 try:
                     airport.category = FlightCategory[metar['flight_category']]
                 except KeyError:
@@ -273,22 +327,53 @@ def render_leds(queue, leds):
         end_r = color >> 8 & 0xff
         end_b = color & 0xff
 
-        while((start_r != end_r) or (start_g != end_g) or (start_b != end_b)):
-            if start_r < end_r:
-                start_r += 1
-            elif start_r > end_r:
-                start_r -= 1
-            if start_g < end_g:
-                start_g += 1
-            elif start_g > end_g:
-                start_g -= 1
-            if start_b < end_b:
-                start_b += 1
-            elif start_b > end_b:
-                start_b -= 1
+        with airport.lock:  # Don't let lightning or wind interrupt us.
+            while((start_r != end_r) or (start_g != end_g) or (start_b != end_b)):
+                if start_r < end_r:
+                    start_r += 1
+                elif start_r > end_r:
+                    start_r -= 1
+                if start_g < end_g:
+                    start_g += 1
+                elif start_g > end_g:
+                    start_g -= 1
+                if start_b < end_b:
+                    start_b += 1
+                elif start_b > end_b:
+                    start_b -= 1
 
-            leds.setPixelColorRGB(airport.index, start_g, start_r, start_b)
-            leds.show()
+                leds.setPixelColorRGB(airport.index, start_g, start_r, start_b)
+                leds.show()
+
+
+def lightning(leds):
+    """Briefly changes LEDs to white, indicating lightning in the area."""
+    airports = AIRPORTS.values()
+    strike_duration = 0.25
+    while True:
+        # Which airports currently are experiencing thunderstorms
+        ts_airports = [airport for airport in airports if airport.thunderstorms]
+        log.info("LIGHTNING @: {}".format(ts_airports))
+
+        for airport in ts_airports:
+            airport.show_lightning(leds, strike_duration)
+
+        time.sleep(LIGHTNING_STRIKE_RATE - strike_duration)
+
+
+def wind(leds):
+    """Briefly changes LEDs to yellow, indicating it's too windy."""
+    airports = AIRPORTS.values()
+    indicator_duration = 0.25
+    while True:
+        # Which locations are currently breezy
+        windy_airports = [airport for airport in airports if airport.windy]
+        log.info('WINDY @: {}'.format(windy_airports))
+
+        for airport in windy_airports:
+            airport.show_wind(leds, indicator_duration)
+
+        time.sleep(WIND_DISPLAY_RATE - indicator_duration)
 
 
 def set_all(leds, color=BLACK):
@@ -313,13 +398,13 @@ def load_configuration():
 
 def on_turn(delta):
     """Let the brightness adjustment thread be aware that it needs to do something."""
-    QUEUE.put(delta)
+    ENCODER_QUEUE.put(delta)
     EVENT.set()
 
 
 def adjust_brightness(leds, cfg):
     while not QUEUE.empty():
-        delta = QUEUE.get()
+        delta = ENCODER_QUEUE.get()
         log.debug('Adjusting brightness.')
         brightness = leds.getBrightness()
         log.debug('Current brightness: {}'.format(brightness))
@@ -401,6 +486,14 @@ def main():
     # A thread to change the LEDs when airport categories change.
     t4 = threading.Thread(name='render_leds', target=render_leds, args=(LED_QUEUE, leds))
     t4.start()
+
+    # A thread for lightning
+    t5 = threading.Thread(name='lightning', target=lightning, args=(leds,))
+    t5.start()
+
+    # A thread for wind
+    t6 = threading.Thread(name='wind', target=wind, args=(leds,))
+    t6.start()
 
 
 if __name__ == '__main__':
