@@ -5,12 +5,17 @@ import logging
 import logging.handlers
 import os
 import re
+import signal
+import sys
 import time
+import threading
 from enum import Enum
 from configparser import ConfigParser
 from rpi_ws281x import PixelStrip, Color
 from rpi_metar import cron
 from rpi_metar import sources
+from rpi_metar import encoder
+from queue import Queue
 
 
 log = logging.getLogger(__name__)
@@ -26,6 +31,9 @@ BLUE = Color(0, 0, 255)
 MAGENTA = Color(0, 255, 255)
 YELLOW = Color(255, 255, 0)
 BLACK = Color(0, 0, 0)
+
+QUEUE = Queue()
+EVENT = threading.Event()
 
 # For gamma correction
 # https://learn.adafruit.com/led-tricks-gamma-correction/the-issue
@@ -237,7 +245,57 @@ def load_configuration():
     return cfg
 
 
+def on_turn(delta):
+    """Let the brightness adjustment thread be aware that it needs to do something."""
+    QUEUE.put(delta)
+    EVENT.set()
+
+
+def adjust_brightness(leds, cfg):
+    while not QUEUE.empty():
+        delta = QUEUE.get()
+        log.debug('Adjusting brightness.')
+        brightness = leds.getBrightness()
+        log.debug('Current brightness: {}'.format(brightness))
+        log.debug('Delta: {}'.format(delta))
+        try:
+            leds.setBrightness(brightness + delta)
+        except OverflowError:
+            log.info('New brightness exceeds limits: {}'.format(brightness + delta))
+        else:
+            leds.show()
+            log.info('Set brightness to {}'.format(brightness + delta))
+
+    # Now that we've handled everything in the queue, write out the current brightness into the
+    # config file. This way it persists upon reboots / restarts, etc.
+    cfg['settings']['brightness'] = str(leds.getBrightness())
+    with open('/etc/rpi_metar.conf', 'w') as f:
+        cfg.write(f)
+    log.debug('Saved new brightness ({}) to cfg file.'.format(leds.getBrightness()))
+
+    # Indicate that we've handled the event.
+    EVENT.clear()
+
+
+def wait_for_knob(event, leds, cfg, timeout=120):
+    while True:
+        log.debug('Waiting for event to be set.')
+        event_is_set = event.wait(timeout)
+        log.debug('event set: {}'.format(event_is_set))
+        if event_is_set:
+            adjust_brightness(leds, cfg)
+
+
 def main():
+
+    # Register the encoder to handle changing the brightness
+    knob = encoder.RotaryEncoder(callback=on_turn)
+
+    def on_exit():
+        knob.destroy()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, on_exit)
 
     cron.set_upgrade_schedule()
 
@@ -261,7 +319,10 @@ def main():
     for airport in AIRPORTS.values():
         leds.setPixelColor(airport.index, YELLOW)
     leds.show()
-    run(leds)
+
+    # Kick off a thread to handle adjusting the brightness
+    t1 = threading.Thread(name='brightness', target=wait_for_knob, args=(EVENT, leds, cfg))
+    t1.start()
 
     try:
         run(leds)
