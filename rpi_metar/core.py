@@ -33,6 +33,8 @@ YELLOW = Color(255, 255, 0)
 BLACK = Color(0, 0, 0)
 
 QUEUE = Queue()
+METAR_QUEUE = Queue()
+LED_QUEUE = Queue()
 EVENT = threading.Event()
 
 # For gamma correction
@@ -73,7 +75,7 @@ class Airport(object):
         self.visibility = None
         self.ceiling = None
         self.raw = None
-        self.category = FlightCategory.UNKNOWN
+        self._category = FlightCategory.UNKNOWN
 
     def __repr__(self):
         return '<{code} @ {index}: {raw} -> {cat}>'.format(
@@ -87,7 +89,17 @@ class Airport(object):
         self.visibility = None
         self.ceiling = None
         self.raw = None
-        self.category = FlightCategory.UNKNOWN
+
+    @property
+    def category(self):
+        return self._category
+
+    @category.setter
+    def category(self, cat):
+        if self._category != cat:
+            self._category = cat
+            log.info('Setting category, putting {} onto queue.'.format(self.code))
+            LED_QUEUE.put(self.code)
 
 
 # A collection of the airports we'll ultimately be tracking.
@@ -148,21 +160,21 @@ def is_internet_up():
     return True
 
 
-def run(leds):
-    """Fetches new METAR information and updates the airport LEDS with the current info."""
-
+def fetch_metars(queue):
+    """Fetches new METAR information periodically."""
     failure_count = 0
+    log.debug("failure count")
+
+    airport_codes = AIRPORTS.keys()
+    data_sources = [
+        sources.NOAA(airport_codes),
+        sources.NOAA(airport_codes, 'bcaws'),
+        sources.SkyVector(airport_codes),
+    ]
+
+    log.debug('Sources initialized.')
 
     while True:
-
-        airports = AIRPORTS.keys()
-
-        data_sources = [
-            sources.NOAA(airports),
-            sources.NOAA(airports, 'bcaws'),
-            sources.SkyVector(airports),
-        ]
-
         for source in data_sources:
             try:
                 metars = source.get_metar_info()
@@ -171,12 +183,7 @@ def run(leds):
             except:  # noqa
                 log.exception('Failed to retrieve metar info.')
         else:  # No data sources returned any info
-            # Visually indicate a failure to refresh the data.
-            for airport in AIRPORTS.values():
-                airport.category = FlightCategory.UNKNOWN
-                color = airport.category.value
-                leds.setPixelColor(airport.index, color)
-            leds.show()
+            metars = None
 
             # Some of the raspberry pis lose their wifi after some time and fail to automatically
             # reconnect. This is a workaround for that case. If we've failed a lot, just reboot.
@@ -190,12 +197,31 @@ def run(leds):
                 log.warning('Internet is not up, rebooting.')
                 os.system('reboot')
 
-            time.sleep(METAR_REFRESH_RATE)
+        queue.put(metars)
+        time.sleep(METAR_REFRESH_RATE)
+
+
+def process_metars(queue, leds):
+    """Converts METAR info info Flight Categories and updates the LEDs."""
+
+    airports = AIRPORTS.values()
+
+    # When the system first starts up, waiting for all of the LEDs to fade into their correct
+    # colors can take a very long time. To mitigate this, we'll just slam the colors into place
+    # if this is the first time this thread is executing.
+    first = True
+
+    while True:
+
+        metars = queue.get()
+        if metars is None:
+            for airport in airports:
+                airport.category = FlightCategory.UNKNOWN
             continue
 
-        for airport in AIRPORTS.values():
+        for airport in airports:
 
-            # Make sure the previous iteration is cleared out.
+            # Make sure that previous iterations are cleared out.
             airport.reset()
 
             try:
@@ -209,20 +235,60 @@ def run(leds):
                 try:
                     airport.category = FlightCategory[metar['flight_category']]
                 except KeyError:
-                    log.exception('%s does not have flight category field, falling back to raw text parsing.', airport.code)
+                    log.info('%s does not have flight category field, falling back to raw text parsing.', airport.code)
                     airport.visibility, airport.ceiling = get_conditions(metar['raw_text'])
                     try:
                         airport.category = get_flight_category(airport.visibility, airport.ceiling)
                     except (TypeError, ValueError):
                         log.exception("Failed to get flight category from %s, %s", airport.visibility, airport.ceiling)
                         airport.category = FlightCategory.UNKNOWN
-            finally:
-                color = airport.category.value
-                leds.setPixelColor(airport.index, color)
+            if first:
+                leds.setPixelColor(airport.index, airport.category.value)
 
-        leds.show()
+        if first:
+            first = False
+            leds.show()
+
+
         log.info(sorted(AIRPORTS.values(), key=lambda x: x.index))
-        time.sleep(METAR_REFRESH_RATE)
+
+
+def render_leds(queue, leds):
+    """Updates the LED strand when something pops onto the queue."""
+    while True:
+        log.info('waiting for queue.')
+        airport_code = queue.get()
+        log.info('got {}'.format(airport_code))
+        airport = AIRPORTS[airport_code.lower()]
+        # This is our target color.
+        color = airport.category.value
+
+        # Let's try to fade to our desired color
+        start_color = leds.getPixelColor(airport.index)
+        start_g = start_color >> 16 & 0xff
+        start_r = start_color >> 8 & 0xff
+        start_b = start_color & 0xff
+
+        end_g = color >> 16 & 0xff
+        end_r = color >> 8 & 0xff
+        end_b = color & 0xff
+
+        while((start_r != end_r) or (start_g != end_g) or (start_b != end_b)):
+            if start_r < end_r:
+                start_r += 1
+            elif start_r > end_r:
+                start_r -= 1
+            if start_g < end_g:
+                start_g += 1
+            elif start_g > end_g:
+                start_g -= 1
+            if start_b < end_b:
+                start_b += 1
+            elif start_b > end_b:
+                start_b -= 1
+
+            leds.setPixelColorRGB(airport.index, start_g, start_r, start_b)
+            leds.show()
 
 
 def set_all(leds, color=BLACK):
@@ -324,11 +390,17 @@ def main():
     t1 = threading.Thread(name='brightness', target=wait_for_knob, args=(EVENT, leds, cfg))
     t1.start()
 
-    try:
-        run(leds)
-    except Exception as e:
-        log.exception('Unexpected exception, shutting down.')
-        set_all(leds, BLACK)
+    # A thread to fetch metar information periodically
+    t2 = threading.Thread(name='metar_fetcher', target=fetch_metars, args=(METAR_QUEUE,))
+    t2.start()
+
+    # A thread to process metar info.
+    t3 = threading.Thread(name='metar_processor', target=process_metars, args=(METAR_QUEUE, leds))
+    t3.start()
+
+    # A thread to change the LEDs when airport categories change.
+    t4 = threading.Thread(name='render_leds', target=render_leds, args=(LED_QUEUE, leds))
+    t4.start()
 
 
 if __name__ == '__main__':
