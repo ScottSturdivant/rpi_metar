@@ -5,8 +5,7 @@ from enum import Enum
 from queue import Queue
 from rpi_metar.leds import GREEN, RED, BLUE, MAGENTA, YELLOW, WHITE
 
-FAILURE_THRESHOLD = 3  # How many times do we not get data before we reboot
-MAX_WIND_SPEED_KTS = 30  # When it's too windy, in knots.
+MAX_WIND_SPEED_KTS = 13 # When it's too windy, in knots.
 
 log = logging.getLogger(__name__)
 
