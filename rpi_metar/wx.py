@@ -2,6 +2,7 @@
 import logging
 import re
 from fractions import Fraction
+from rpi_metar.airports import FlightCategory
 
 
 log = logging.getLogger(__name__)
