@@ -94,57 +94,60 @@ def process_metars(queue, leds):
 
     while True:
 
-        metars = queue.get()
-        if metars is None:
+        try:
+            metars = queue.get()
+            if metars is None:
+                for airport in airports:
+                    airport.category = FlightCategory.UNKNOWN
+                continue
+
             for airport in airports:
-                airport.category = FlightCategory.UNKNOWN
-            continue
 
-        for airport in airports:
+                # Make sure that previous iterations are cleared out.
+                airport.reset()
 
-            # Make sure that previous iterations are cleared out.
-            airport.reset()
-
-            try:
-                metar = metars[airport.code]
-                log.debug(metar)
-                airport.raw = metar['raw_text']
-            except KeyError:
-                log.exception('%s has no data.', airport.code)
-                airport.category = FlightCategory.UNKNOWN
-            else:
-                # Thunderstorms
-                airport.thunderstorms = any(word in metar['raw_text'] for word in ['TSRA', 'VCTS'])
-
-                # Wind info
                 try:
-                    airport.wind_speed = int(metar['wind_speed_kt'])
+                    metar = metars[airport.code]
+                    log.info(metar)
+                    airport.raw = metar['raw_text']
                 except KeyError:
-                    pass
-                try:
-                    airport.wind_gusts = int(metar['wind_gust_kt'])
-                except KeyError:
-                    pass
+                    log.exception('%s has no data.', airport.code)
+                    airport.category = FlightCategory.UNKNOWN
+                else:
+                    # Thunderstorms
+                    airport.thunderstorms = any(word in metar['raw_text'] for word in ['TSRA', 'VCTS'])
 
-                # Flight categories. First automatic, then manual parsing.
-                try:
-                    airport.category = FlightCategory[metar['flight_category']]
-                except KeyError:
-                    log.info('%s does not have flight category field, falling back to raw text parsing.', airport.code)
-                    airport.visibility, airport.ceiling = wx.get_conditions(metar['raw_text'])
+                    # Wind info
                     try:
-                        airport.category = wx.get_flight_category(airport.visibility, airport.ceiling)
-                    except (TypeError, ValueError):
-                        log.exception("Failed to get flight category from %s, %s", airport.visibility, airport.ceiling)
-                        airport.category = FlightCategory.UNKNOWN
+                        airport.wind_speed = int(metar['wind_speed_kt'])
+                    except KeyError:
+                        pass
+                    try:
+                        airport.wind_gusts = int(metar['wind_gust_kt'])
+                    except KeyError:
+                        pass
+
+                    # Flight categories. First automatic, then manual parsing.
+                    try:
+                        airport.category = FlightCategory[metar['flight_category']]
+                    except KeyError:
+                        log.info('%s does not have flight category field, falling back to raw text parsing.', airport.code)
+                        airport.visibility, airport.ceiling = wx.get_conditions(metar['raw_text'])
+                        try:
+                            airport.category = wx.get_flight_category(airport.visibility, airport.ceiling)
+                        except (TypeError, ValueError):
+                            log.exception("Failed to get flight category from %s, %s", airport.visibility, airport.ceiling)
+                            airport.category = FlightCategory.UNKNOWN
+                if first:
+                    leds.setPixelColor(airport.index, airport.category.value)
+
             if first:
-                leds.setPixelColor(airport.index, airport.category.value)
+                first = False
+                leds.show()
 
-        if first:
-            first = False
-            leds.show()
-
-        log.info(sorted(AIRPORTS.values(), key=lambda x: x.index))
+            log.info(sorted(AIRPORTS.values(), key=lambda x: x.index))
+        except:
+            log.exception('metar processor error')
 
 
 def render_leds(queue, leds):
