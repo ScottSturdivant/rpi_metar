@@ -1,11 +1,19 @@
 """Weather parsing utilities."""
 import logging
 import re
+from enum import Enum
 from fractions import Fraction
-from rpi_metar.airports import FlightCategory
-
+from rpi_metar.leds import GREEN, RED, BLUE, MAGENTA, YELLOW
 
 log = logging.getLogger(__name__)
+
+
+class FlightCategory(Enum):
+    VFR = GREEN
+    IFR = RED
+    MVFR = BLUE
+    LIFR = MAGENTA
+    UNKNOWN = YELLOW
 
 
 def get_conditions(metar_info):
@@ -42,12 +50,17 @@ def get_flight_category(visibility, ceiling):
         ceiling = 10000
 
     # http://www.faraim.org/aim/aim-4-03-14-446.html
-    if visibility < 1 or ceiling < 500:
-        return FlightCategory.LIFR
-    elif 1 <= visibility < 3 or 500 <= ceiling < 1000:
-        return FlightCategory.IFR
-    elif 3 <= visibility <= 5 or 1000 <= ceiling <= 3000:
-        return FlightCategory.MVFR
-    elif visibility > 5 and ceiling > 3000:
-        return FlightCategory.VFR
-    raise ValueError
+    try:
+        if visibility < 1 or ceiling < 500:
+            return FlightCategory.LIFR
+        elif 1 <= visibility < 3 or 500 <= ceiling < 1000:
+            return FlightCategory.IFR
+        elif 3 <= visibility <= 5 or 1000 <= ceiling <= 3000:
+            return FlightCategory.MVFR
+        elif visibility > 5 and ceiling > 3000:
+            return FlightCategory.VFR
+    except (TypeError, ValueError):
+        log.exception('Failed to get flight category from {vis}, {ceil}'.format(
+            vis=visibility,
+            ceil=ceiling
+        ))

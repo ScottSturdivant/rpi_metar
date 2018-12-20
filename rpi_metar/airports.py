@@ -1,7 +1,5 @@
 import logging
-from enum import Enum
 from queue import Queue
-from rpi_metar.leds import GREEN, RED, BLUE, MAGENTA, YELLOW
 from rpi_metar import wx
 
 MAX_WIND_SPEED_KTS = 30  # When it's too windy, in knots.
@@ -10,14 +8,6 @@ log = logging.getLogger(__name__)
 
 
 LED_QUEUE = Queue()
-
-
-class FlightCategory(Enum):
-    VFR = GREEN
-    IFR = RED
-    MVFR = BLUE
-    LIFR = MAGENTA
-    UNKNOWN = YELLOW
 
 
 class Airport(object):
@@ -32,7 +22,7 @@ class Airport(object):
         self.wind_speed = 0
         self.wind_gusts = 0
         self.max_wind_speed = max_wind_speed_kts
-        self._category = FlightCategory.UNKNOWN
+        self._category = wx.FlightCategory.UNKNOWN
 
     def __repr__(self):
         return '<{code} @ {index}: {raw} -> {cat}>'.format(
@@ -76,7 +66,7 @@ class Airport(object):
             self.raw = metar['raw_text']
         except KeyError:
             log.exception('{} has no data.'.format(self.code))
-            self.category = FlightCategory.UNKNOWN
+            self.category = wx.FlightCategory.UNKNOWN
             return
 
         # Thunderstorms
@@ -95,7 +85,7 @@ class Airport(object):
 
         # Flight categories. First automatic, then manual parsing.
         try:
-            self.category = FlightCategory[metar['flight_category']]
+            self.category = wx.FlightCategory[metar['flight_category']]
         except KeyError:
             log.info('%s does not have flight category field, falling back to raw text parsing.', self.code)
             self.visibility, self.ceiling = wx.get_conditions(metar['raw_text'])

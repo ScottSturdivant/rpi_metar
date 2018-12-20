@@ -11,7 +11,8 @@ from configparser import ConfigParser
 from rpi_ws281x import PixelStrip
 from rpi_metar import cron, sources, encoder
 from rpi_metar.leds import BLACK, YELLOW, WHITE, GAMMA
-from rpi_metar.airports import FlightCategory, Airport, LED_QUEUE, MAX_WIND_SPEED_KTS
+from rpi_metar.airports import Airport, LED_QUEUE, MAX_WIND_SPEED_KTS
+from rpi_metar.wx import FlightCategory
 from queue import Queue
 
 
@@ -270,11 +271,13 @@ def main():
     # Register the encoder to handle changing the brightness
     knob = encoder.RotaryEncoder(callback=on_turn)
 
-    def on_exit():
+    def on_exit(sig, frame):
         knob.destroy()
+        set_all(leds, BLACK)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, on_exit)
+    signal.signal(signal.SIGTERM, on_exit)
 
     cron.set_upgrade_schedule()
 
