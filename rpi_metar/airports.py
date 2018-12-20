@@ -2,6 +2,7 @@ import logging
 from enum import Enum
 from queue import Queue
 from rpi_metar.leds import GREEN, RED, BLUE, MAGENTA, YELLOW
+from rpi_metar import wx
 
 MAX_WIND_SPEED_KTS = 30  # When it's too windy, in knots.
 
@@ -64,3 +65,38 @@ class Airport(object):
             self._category = cat
             log.info('Setting category, putting {} onto queue.'.format(self.code))
             LED_QUEUE.put(self.code)
+
+    def process_metar(self, metars):
+        # Make sure previous iterations are cleared out
+        self.reset()
+
+        try:
+            metar = metars[self.code]
+            log.info(metar)
+            self.raw = metar['raw_text']
+        except KeyError:
+            log.exception('{} has no data.'.format(self.code))
+            self.category = FlightCategory.UNKNOWN
+            return
+
+        # Thunderstorms
+        self.thunderstorms = any(word in metar['raw_text'] for word in ['TSRA', 'VCTS'])
+
+        # Wind info
+        try:
+            self.wind_speed = int(metar['wind_speed_kt'])
+        except KeyError:
+            pass
+
+        try:
+            self.wind_gusts = int(metar['wind_gust_kt'])
+        except KeyError:
+            pass
+
+        # Flight categories. First automatic, then manual parsing.
+        try:
+            self.category = FlightCategory[metar['flight_category']]
+        except KeyError:
+            log.info('%s does not have flight category field, falling back to raw text parsing.', self.code)
+            self.visibility, self.ceiling = wx.get_conditions(metar['raw_text'])
+            self.category = wx.get_flight_category(self.visibility, self.ceiling)

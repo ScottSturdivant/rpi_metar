@@ -9,7 +9,7 @@ import time
 import threading
 from configparser import ConfigParser
 from rpi_ws281x import PixelStrip
-from rpi_metar import cron, sources, encoder, wx
+from rpi_metar import cron, sources, encoder
 from rpi_metar.leds import BLACK, YELLOW, WHITE, GAMMA
 from rpi_metar.airports import FlightCategory, Airport, LED_QUEUE, MAX_WIND_SPEED_KTS
 from queue import Queue
@@ -52,7 +52,6 @@ def fetch_metars(queue):
         sources.NOAA(airport_codes, 'bcaws'),
         sources.SkyVector(airport_codes),
     ]
-
 
     while True:
         for source in data_sources:
@@ -101,48 +100,15 @@ def process_metars(queue, leds):
                 continue
 
             for airport in airports:
+                airport.process_metar(metars)
 
-                # Make sure that previous iterations are cleared out.
-                airport.reset()
-
-                try:
-                    metar = metars[airport.code]
-                    log.info(metar)
-                    airport.raw = metar['raw_text']
-                except KeyError:
-                    log.exception('%s has no data.', airport.code)
-                    airport.category = FlightCategory.UNKNOWN
-                else:
-                    # Thunderstorms
-                    airport.thunderstorms = any(word in metar['raw_text'] for word in ['TSRA', 'VCTS'])
-
-                    # Wind info
-                    try:
-                        airport.wind_speed = int(metar['wind_speed_kt'])
-                    except KeyError:
-                        pass
-                    try:
-                        airport.wind_gusts = int(metar['wind_gust_kt'])
-                    except KeyError:
-                        pass
-
-                    # Flight categories. First automatic, then manual parsing.
-                    try:
-                        airport.category = FlightCategory[metar['flight_category']]
-                    except KeyError:
-                        log.info('%s does not have flight category field, falling back to raw text parsing.', airport.code)
-                        airport.visibility, airport.ceiling = wx.get_conditions(metar['raw_text'])
-                        try:
-                            airport.category = wx.get_flight_category(airport.visibility, airport.ceiling)
-                        except (TypeError, ValueError):
-                            log.exception("Failed to get flight category from %s, %s", airport.visibility, airport.ceiling)
-                            airport.category = FlightCategory.UNKNOWN
                 if first:
                     leds.setPixelColor(airport.index, airport.category.value)
 
             if first:
                 first = False
                 leds.show()
+
             # Let the weather checkers know the info is refreshed
             METAR_EVENT.set()
 
