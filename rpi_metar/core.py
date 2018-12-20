@@ -10,8 +10,8 @@ import threading
 from configparser import ConfigParser
 from rpi_ws281x import PixelStrip
 from rpi_metar import cron, sources, encoder, wx
-from rpi_metar.leds import BLACK, YELLOW, GAMMA
-from rpi_metar.airports import FlightCategory, Airport, LED_QUEUE
+from rpi_metar.leds import BLACK, YELLOW, WHITE, GAMMA
+from rpi_metar.airports import FlightCategory, Airport, LED_QUEUE, MAX_WIND_SPEED_KTS
 from queue import Queue
 
 
@@ -27,6 +27,7 @@ FAILURE_THRESHOLD = 3  # How many times do we not get data before we reboot
 ENCODER_QUEUE = Queue()
 METAR_QUEUE = Queue()
 ENCODER_EVENT = threading.Event()
+METAR_EVENT = threading.Event()
 
 # A collection of the airports we'll ultimately be tracking.
 AIRPORTS = {}
@@ -144,9 +145,12 @@ def process_metars(queue, leds):
             if first:
                 first = False
                 leds.show()
+            # Let the weather checkers know the info is refreshed
+            METAR_EVENT.set()
 
             log.info(sorted(AIRPORTS.values(), key=lambda x: x.index))
-        except:
+
+        except:  # noqa
             log.exception('metar processor error')
 
 
@@ -170,7 +174,7 @@ def render_leds(queue, leds):
         end_r = color >> 8 & 0xff
         end_b = color & 0xff
 
-        with airport.lock:  # Don't let lightning or wind interrupt us.
+        with leds.lock:  # Don't let lightning or wind interrupt us.
             while((start_r != end_r) or (start_g != end_g) or (start_b != end_b)):
                 if start_r < end_r:
                     start_r += 1
@@ -189,34 +193,58 @@ def render_leds(queue, leds):
                 leds.show()
 
 
-def lightning(leds):
+def lightning(leds, event):
     """Briefly changes LEDs to white, indicating lightning in the area."""
     airports = AIRPORTS.values()
-    strike_duration = 0.25
+    strike_duration = 1.0
     while True:
         # Which airports currently are experiencing thunderstorms
         ts_airports = [airport for airport in airports if airport.thunderstorms]
         log.info("LIGHTNING @: {}".format(ts_airports))
+        if ts_airports:
+            with leds.lock:
+                for airport in ts_airports:
+                    leds.setPixelColor(airport.index, WHITE)
+                leds.show()
+                time.sleep(strike_duration)
 
-        for airport in ts_airports:
-            airport.show_lightning(leds, strike_duration)
+                for airport in ts_airports:
+                    leds.setPixelColor(airport.index, airport.category.value)
+                leds.show()
+            time.sleep(LIGHTNING_STRIKE_RATE - strike_duration)
+        else:
+            # Sleep until the next metar refresh...
+            event.wait(METAR_REFRESH_RATE)
+            event.clear()
 
-        time.sleep(LIGHTNING_STRIKE_RATE - strike_duration)
 
-
-def wind(leds):
+def wind(leds, event):
     """Briefly changes LEDs to yellow, indicating it's too windy."""
     airports = AIRPORTS.values()
-    indicator_duration = 0.25
+    indicator_duration = 1.0
     while True:
         # Which locations are currently breezy
         windy_airports = [airport for airport in airports if airport.windy]
         log.info('WINDY @: {}'.format(windy_airports))
+        if windy_airports:
+            # We want wind indicators to appear simultaneously.
+            try:
+                with leds.lock:
+                    for airport in windy_airports:
+                        leds.setPixelColor(airport.index, YELLOW)
+                    leds.show()
+                    time.sleep(indicator_duration)
 
-        for airport in windy_airports:
-            airport.show_wind(leds, indicator_duration)
+                    for airport in windy_airports:
+                        leds.setPixelColor(airport.index, airport.category.value)
+                    leds.show()
 
-        time.sleep(WIND_DISPLAY_RATE - indicator_duration)
+                time.sleep(WIND_DISPLAY_RATE - indicator_duration)
+            except:
+                log.exception('fuck')
+        else:
+            event.wait(METAR_REFRESH_RATE)
+            event.clear()
 
 
 def set_all(leds, color=BLACK):
@@ -232,9 +260,11 @@ def load_configuration():
     cfg = ConfigParser()
     cfg.read(cfg_files)
 
+    max_wind_speed_kts = cfg.getint('settings', 'max_wind', fallback=MAX_WIND_SPEED_KTS)
+
     for code in cfg.options('airports'):
         index = cfg.getint('airports', code)
-        AIRPORTS[code] = Airport(code, index)
+        AIRPORTS[code] = Airport(code, index, max_wind_speed_kts=max_wind_speed_kts)
 
     return cfg
 
@@ -308,6 +338,7 @@ def main():
 
     leds = PixelStrip(**kwargs)
     leds.begin()
+    leds.lock = threading.Lock()
     set_all(leds, BLACK)
 
     for airport in AIRPORTS.values():
@@ -315,28 +346,30 @@ def main():
     leds.show()
 
     # Kick off a thread to handle adjusting the brightness
-    t1 = threading.Thread(name='brightness', target=wait_for_knob, args=(ENCODER_EVENT, leds, cfg))
-    t1.start()
+    t = threading.Thread(name='brightness', target=wait_for_knob, args=(ENCODER_EVENT, leds, cfg))
+    t.start()
 
     # A thread to fetch metar information periodically
-    t2 = threading.Thread(name='metar_fetcher', target=fetch_metars, args=(METAR_QUEUE,))
-    t2.start()
+    t = threading.Thread(name='metar_fetcher', target=fetch_metars, args=(METAR_QUEUE,))
+    t.start()
 
     # A thread to process metar info.
-    t3 = threading.Thread(name='metar_processor', target=process_metars, args=(METAR_QUEUE, leds))
-    t3.start()
+    t = threading.Thread(name='metar_processor', target=process_metars, args=(METAR_QUEUE, leds))
+    t.start()
 
     # A thread to change the LEDs when airport categories change.
-    t4 = threading.Thread(name='render_leds', target=render_leds, args=(LED_QUEUE, leds))
-    t4.start()
+    t = threading.Thread(name='render_leds', target=render_leds, args=(LED_QUEUE, leds))
+    t.start()
 
     # A thread for lightning
-    t5 = threading.Thread(name='lightning', target=lightning, args=(leds,))
-    t5.start()
+    if cfg.get('settings', 'lightning', fallback=True):
+        t = threading.Thread(name='lightning', target=lightning, args=(leds, METAR_EVENT))
+        t.start()
 
     # A thread for wind
-    t6 = threading.Thread(name='wind', target=wind, args=(leds,))
-    t6.start()
+    if cfg.get('settings', 'wind', fallback=True):
+        t = threading.Thread(name='wind', target=wind, args=(leds, METAR_EVENT))
+        t.start()
 
 
 if __name__ == '__main__':

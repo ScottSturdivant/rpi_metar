@@ -1,11 +1,9 @@
-import threading
 import logging
-import time
 from enum import Enum
 from queue import Queue
-from rpi_metar.leds import GREEN, RED, BLUE, MAGENTA, YELLOW, WHITE
+from rpi_metar.leds import GREEN, RED, BLUE, MAGENTA, YELLOW
 
-MAX_WIND_SPEED_KTS = 13 # When it's too windy, in knots.
+MAX_WIND_SPEED_KTS = 30  # When it's too windy, in knots.
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +21,7 @@ class FlightCategory(Enum):
 
 class Airport(object):
 
-    def __init__(self, code, led_index):
+    def __init__(self, code, led_index, max_wind_speed_kts=MAX_WIND_SPEED_KTS):
         self.code = code.upper()
         self.index = led_index
         self.visibility = None
@@ -32,10 +30,8 @@ class Airport(object):
         self.thunderstorms = False
         self.wind_speed = 0
         self.wind_gusts = 0
+        self.max_wind_speed = max_wind_speed_kts
         self._category = FlightCategory.UNKNOWN
-        # Give each airport a lock. Since multiple threads may be trying to manipulate this LED
-        # at once, only one should win.
-        self.lock = threading.Lock()
 
     def __repr__(self):
         return '<{code} @ {index}: {raw} -> {cat}>'.format(
@@ -55,7 +51,7 @@ class Airport(object):
 
     @property
     def windy(self):
-        return self.wind_speed > MAX_WIND_SPEED_KTS or self.wind_gusts > MAX_WIND_SPEED_KTS
+        return self.wind_speed > self.max_wind_speed or self.wind_gusts > self.max_wind_speed
 
     @property
     def category(self):
@@ -68,21 +64,3 @@ class Airport(object):
             self._category = cat
             log.info('Setting category, putting {} onto queue.'.format(self.code))
             LED_QUEUE.put(self.code)
-
-    def show_lightning(self, leds, strike_duration):
-        with self.lock:
-            leds.setPixelColor(self.index, WHITE)
-            leds.show()
-            time.sleep(strike_duration)
-
-            leds.setPixelColor(self.index, self.category.value)
-            leds.show()
-
-    def show_wind(self, leds, indicator_duration):
-        with self.lock:
-            leds.setPixelColor(self.index, YELLOW)
-            leds.show()
-            time.sleep(indicator_duration)
-
-            leds.setPixelColor(self.index, self.category.value)
-            leds.show()
