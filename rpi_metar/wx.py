@@ -17,9 +17,10 @@ class FlightCategory(Enum):
 
 
 def get_conditions(metar_info):
-    """Returns the visibility and ceiling for a given airport from some metar info."""
+    """Returns the visibility, ceiling, wind speed, and gusts for a given airport from some metar info."""
     log.debug(metar_info)
     visibility = ceiling = None
+    speed = gust = 0
     # Visibility
     # We may have fractions, e.g. 1/8SM or 1 1/2SM
     # Or it will be whole numbers, e.g. 2SM
@@ -35,8 +36,12 @@ def get_conditions(metar_info):
     match = re.search(r'(VV|BKN|OVC)(?P<ceiling>\d{3})', metar_info)
     if match:
         ceiling = int(match.group('ceiling')) * 100  # It is reported in hundreds of feet
-        return visibility, ceiling
-    return (visibility, ceiling)
+    # Wind info
+    match = re.search(r'\b\d{3}(?P<speed>\d{2,3})G?(?P<gust>\d{2,3})?KT', metar_info)
+    if match:
+        speed = int(match.group('speed'))
+        gust = int(match.group('gust')) if match.group('gust') else 0
+    return (visibility, ceiling, speed, gust)
 
 
 def get_flight_category(visibility, ceiling):
