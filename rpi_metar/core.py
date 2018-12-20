@@ -45,7 +45,6 @@ def is_internet_up():
 def fetch_metars(queue):
     """Fetches new METAR information periodically."""
     failure_count = 0
-    log.debug("failure count")
 
     airport_codes = list(AIRPORTS.keys())
     data_sources = [
@@ -54,7 +53,6 @@ def fetch_metars(queue):
         sources.SkyVector(airport_codes),
     ]
 
-    log.debug('Sources initialized.')
 
     while True:
         for source in data_sources:
@@ -228,20 +226,17 @@ def wind(leds, event):
         log.info('WINDY @: {}'.format(windy_airports))
         if windy_airports:
             # We want wind indicators to appear simultaneously.
-            try:
-                with leds.lock:
-                    for airport in windy_airports:
-                        leds.setPixelColor(airport.index, YELLOW)
-                    leds.show()
-                    time.sleep(indicator_duration)
+            with leds.lock:
+                for airport in windy_airports:
+                    leds.setPixelColor(airport.index, YELLOW)
+                leds.show()
+                time.sleep(indicator_duration)
 
-                    for airport in windy_airports:
-                        leds.setPixelColor(airport.index, airport.category.value)
-                    leds.show()
+                for airport in windy_airports:
+                    leds.setPixelColor(airport.index, airport.category.value)
+                leds.show()
 
-                time.sleep(WIND_DISPLAY_RATE - indicator_duration)
-            except:
-                log.exception('fuck')
+            time.sleep(WIND_DISPLAY_RATE - indicator_duration)
         else:
             event.wait(METAR_REFRESH_RATE)
             event.clear()
@@ -278,10 +273,7 @@ def on_turn(delta):
 def adjust_brightness(leds, cfg):
     while not ENCODER_QUEUE.empty():
         delta = ENCODER_QUEUE.get()
-        log.debug('Adjusting brightness.')
         brightness = leds.getBrightness()
-        log.debug('Current brightness: {}'.format(brightness))
-        log.debug('Delta: {}'.format(delta))
         try:
             leds.setBrightness(brightness + delta)
         except OverflowError:
@@ -295,19 +287,16 @@ def adjust_brightness(leds, cfg):
     cfg['settings']['brightness'] = str(leds.getBrightness())
     with open('/etc/rpi_metar.conf', 'w') as f:
         cfg.write(f)
-    log.debug('Saved new brightness ({}) to cfg file.'.format(leds.getBrightness()))
+    log.info('Saved new brightness ({}) to cfg file.'.format(leds.getBrightness()))
 
     # Indicate that we've handled the event.
     ENCODER_EVENT.clear()
 
 
-def wait_for_knob(event, leds, cfg, timeout=120):
+def wait_for_knob(event, leds, cfg):
     while True:
-        log.debug('Waiting for event to be set.')
-        event_is_set = event.wait(timeout)
-        log.debug('event set: {}'.format(event_is_set))
-        if event_is_set:
-            adjust_brightness(leds, cfg)
+        event.wait()
+        adjust_brightness(leds, cfg)
 
 
 def main():
