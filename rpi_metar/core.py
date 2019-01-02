@@ -233,6 +233,7 @@ def load_configuration():
 
 def on_turn(delta):
     """Let the brightness adjustment thread be aware that it needs to do something."""
+    log.debug("on turn called.")
     ENCODER_QUEUE.put(delta)
     ENCODER_EVENT.set()
 
@@ -251,6 +252,8 @@ def adjust_brightness(leds, cfg):
 
     # Now that we've handled everything in the queue, write out the current brightness into the
     # config file. This way it persists upon reboots / restarts, etc.
+    if 'settings' not in cfg:
+        cfg['settings'] = {}
     cfg['settings']['brightness'] = str(leds.getBrightness())
     with open('/etc/rpi_metar.conf', 'w') as f:
         cfg.write(f)
@@ -262,8 +265,11 @@ def adjust_brightness(leds, cfg):
 
 def wait_for_knob(event, leds, cfg):
     while True:
-        event.wait()
-        adjust_brightness(leds, cfg)
+        try:
+            event.wait()
+            adjust_brightness(leds, cfg)
+        except:
+            log.exception('unexpected error')
 
 
 def main():
