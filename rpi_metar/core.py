@@ -147,7 +147,7 @@ def run(leds):
 
     while True:
 
-        airports = AIRPORTS.keys()
+        airports = list(AIRPORTS.keys())
 
         data_sources = [
             sources.NOAA(airports),
