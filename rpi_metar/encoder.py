@@ -1,9 +1,12 @@
 from RPi import GPIO
+import logging
+
+log = logging.getLogger(__name__)
 
 
 # The two pins that the encoder uses (BCM numbering).
-GPIO_A = 26
-GPIO_B = 19
+GPIO_A = 23
+GPIO_B = 25
 
 
 class RotaryEncoder:
@@ -31,6 +34,7 @@ class RotaryEncoder:
 
     def _callback(self, channel):
         level = GPIO.input(channel)
+        log.debug('{channel} = {level}'.format(channel=channel, level=level))
         if channel == self.gpioA:
             self.levA = level
         else:
@@ -38,14 +42,18 @@ class RotaryEncoder:
 
         # Debounce.
         if channel == self.lastGpio:
+            log.debug('debounced.')
             return
 
         # When both inputs are at 1, we'll fire a callback. If A was the most recent pin set high,
         # it'll be forward, and if B was the most recent pin set high, it'll be reverse.
         self.lastGpio = channel
+        log.debug('set lastGpio to {channel}'.format(channel=channel))
         if channel == self.gpioA and level == 1:
             if self.levB == 1:
+                log.debug('A is set and B was already set, callback(1)')
                 self.callback(1)
         elif channel == self.gpioB and level == 1:
             if self.levA == 1:
+                log.debug('B is set and A was already set, callback(1)')
                 self.callback(-1)
