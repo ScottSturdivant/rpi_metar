@@ -10,7 +10,7 @@ def main():
     config['settings'] = {'brightness': 75}
     cfg_file = '/etc/rpi_metar.conf'
 
-    leds = PixelStrip(num=500, pin=18, gamma=core.GAMMA, brightness=128)
+    leds = PixelStrip(num=2000, pin=18, gamma=core.GAMMA, brightness=128)
     leds.begin()
 
     i = 0
