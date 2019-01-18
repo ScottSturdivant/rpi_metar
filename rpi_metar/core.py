@@ -29,6 +29,7 @@ ENCODER_QUEUE = Queue()
 METAR_QUEUE = Queue()
 ENCODER_EVENT = threading.Event()
 METAR_EVENT = threading.Event()
+BUTTON_EVENT = threading.Event()
 
 # A collection of the airports we'll ultimately be tracking.
 AIRPORTS = {}
@@ -238,6 +239,12 @@ def on_turn(delta):
     ENCODER_EVENT.set()
 
 
+def on_press():
+    """Let it be known that the button has been pressed."""
+    log.debug('on press called.')
+    BUTTON_EVENT.set()
+
+
 def adjust_brightness(leds, cfg):
     while not ENCODER_QUEUE.empty():
         delta = ENCODER_QUEUE.get()
@@ -272,10 +279,22 @@ def wait_for_knob(event, leds, cfg):
             log.exception('unexpected error')
 
 
+def wait_for_press(event, leds):
+    while True:
+        try:
+            event.wait()
+            leds.show()
+            log.debug('refreshed leds.')
+        except:
+            log.exception('unexpected error')
+        finally:
+            BUTTON_EVENT.clear()
+
+
 def main():
 
     # Register the encoder to handle changing the brightness
-    knob = encoder.RotaryEncoder(callback=on_turn)
+    knob = encoder.RotaryEncoder(callback=on_turn, button_callback=on_press)
 
     def on_exit(sig, frame):
         knob.destroy()
@@ -311,6 +330,10 @@ def main():
 
     # Kick off a thread to handle adjusting the brightness
     t = threading.Thread(name='brightness', target=wait_for_knob, args=(ENCODER_EVENT, leds, cfg))
+    t.start()
+
+    # A thread to monitor for button presses
+    t = threading.Thread(name='button', target=wait_for_press, args=(BUTTON_EVENT, leds))
     t.start()
 
     # A thread to fetch metar information periodically
