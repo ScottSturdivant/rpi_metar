@@ -13,10 +13,24 @@ def main():
     leds = PixelStrip(num=2000, pin=18, gamma=core.GAMMA, brightness=128)
     leds.begin()
 
+    # If there's an existing config file, see if we want to continue where we left off or just
+    # overwrite it.
     i = 0
-    code = None
-    airports = {}
+    airpots = {}
+    try:
+        config.read_file(cfg_file)
+    except:
+        pass
+    else:
+        while prompt not in ['c', 'o']:
+            prompt = input('cfg file exists.  [c]ontinue or [o]verwrite')
+        if prompt == 'o':
+            for code in cfg.options('airports'):
+                index = cfg.getint('airports', code)
+                airports[code.upper()] = index
+            i = max(airports.values()) + 1
 
+    code = None
     while code != 'q':
         core.set_all(leds, BLACK)
         leds.setPixelColor(i, GREEN)
