@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from rpi_metar import sources, core
+from rpi_metar.leds import GREEN, BLACK
 from rpi_ws281x import PixelStrip
 import configparser
 
@@ -17,8 +18,8 @@ def main():
     airports = {}
 
     while code != 'q':
-        core.set_all(leds, core.BLACK)
-        leds.setPixelColor(i, core.GREEN)
+        core.set_all(leds, BLACK)
+        leds.setPixelColor(i, GREEN)
         leds.show()
 
         code = input('Code:   [s]kip or [q]uit ').casefold()
@@ -51,7 +52,7 @@ def main():
         airports[code] = i
         i += 1
 
-    core.set_all(leds, core.BLACK)
+    core.set_all(leds, BLACK)
     config['airports'] = airports
     with open(cfg_file, 'w') as f:
         config.write(f)
