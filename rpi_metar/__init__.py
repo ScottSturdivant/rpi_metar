@@ -21,7 +21,7 @@ def init_logger():
     ctx_filter = ContextFilter()
 
     log.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(version)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(version)s - %(threadName)s - %(message)s')
     handler = logging.handlers.SysLogHandler(address='/dev/log')
     handler.setFormatter(formatter)
     handler.addFilter(ctx_filter)
@@ -29,7 +29,7 @@ def init_logger():
 
     papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
     formatter = logging.Formatter(
-        '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(version)s %(message)s',
+        '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(version)s %(threadName)s %(message)s',
         datefmt='%b %d %H:%M:%S'
     )
 
