@@ -66,5 +66,5 @@ class RotaryEncoder:
                 self.callback(1)
         elif channel == self.gpioB and level == 1:
             if self.levA == 1:
-                log.debug('B is set and A was already set, callback(1)')
+                log.debug('B is set and A was already set, callback(-1)')
                 self.callback(-1)
