@@ -158,10 +158,10 @@ def render_leds(queue, leds):
                 leds.show()
 
 
-def lightning(leds, event):
+def lightning(leds, event, cfg):
     """Briefly changes LEDs to white, indicating lightning in the area."""
     airports = AIRPORTS.values()
-    strike_duration = 1.0
+    strike_duration = cfg.getfloat('settings', 'lightning_duration', 1.0)
     while True:
         # Which airports currently are experiencing thunderstorms
         ts_airports = [airport for airport in airports if airport.thunderstorms]
@@ -183,10 +183,10 @@ def lightning(leds, event):
             event.clear()
 
 
-def wind(leds, event):
+def wind(leds, event, cfg):
     """Briefly changes LEDs to yellow, indicating it's too windy."""
     airports = AIRPORTS.values()
-    indicator_duration = 1.0
+    indicator_duration = cfg.getfloat('settings', 'wind_duration', 1.0)
     while True:
         # Which locations are currently breezy
         windy_airports = [airport for airport in airports if airport.windy]
@@ -327,12 +327,12 @@ def main():
 
     # A thread for lightning
     if cfg.get('settings', 'lightning', fallback=True):
-        t = threading.Thread(name='lightning', target=lightning, args=(leds, METAR_EVENT))
+        t = threading.Thread(name='lightning', target=lightning, args=(leds, METAR_EVENT, cfg))
         t.start()
 
     # A thread for wind
     if cfg.get('settings', 'wind', fallback=True):
-        t = threading.Thread(name='wind', target=wind, args=(leds, METAR_EVENT))
+        t = threading.Thread(name='wind', target=wind, args=(leds, METAR_EVENT, cfg))
         t.start()
 
 
