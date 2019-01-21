@@ -161,7 +161,7 @@ def render_leds(queue, leds):
 def lightning(leds, event, cfg):
     """Briefly changes LEDs to white, indicating lightning in the area."""
     airports = AIRPORTS.values()
-    strike_duration = cfg.getfloat('settings', 'lightning_duration', 1.0)
+    strike_duration = cfg.getfloat('settings', 'lightning_duration', fallback=1.0)
     while True:
         # Which airports currently are experiencing thunderstorms
         ts_airports = [airport for airport in airports if airport.thunderstorms]
@@ -186,7 +186,7 @@ def lightning(leds, event, cfg):
 def wind(leds, event, cfg):
     """Briefly changes LEDs to yellow, indicating it's too windy."""
     airports = AIRPORTS.values()
-    indicator_duration = cfg.getfloat('settings', 'wind_duration', 1.0)
+    indicator_duration = cfg.getfloat('settings', 'wind_duration', fallback=1.0)
     while True:
         # Which locations are currently breezy
         windy_airports = [airport for airport in airports if airport.windy]
