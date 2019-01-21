@@ -53,7 +53,7 @@ class NOAA(METARSource):
         # NOAA can only handle so much at once, so split into chunks.
         metars = {}
 
-        for chunk in chunks(self.airport_codes, 1000):
+        for chunk in chunks(self.airport_codes, 500):
             self.url = self.URL.format(airport_codes=','.join(chunk), subdomain=self.subdomain)
             response = self._query()
             try:
