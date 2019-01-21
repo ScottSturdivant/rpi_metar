@@ -11,13 +11,11 @@ GPIO_B = 25
 
 class RotaryEncoder:
 
-    def __init__(self, callback, gpioA=GPIO_A, gpioB=GPIO_B)
+    def __init__(self, callback, gpioA=GPIO_A, gpioB=GPIO_B):
         self.lastGpio = None
         self.gpioA = gpioA
         self.gpioB = gpioB
-        self.gpio_button = gpio_button
         self.callback = callback
-        self.button_callback = button_callback
 
         self.levA = 0
         self.levB = 0
