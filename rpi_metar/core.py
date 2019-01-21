@@ -43,7 +43,7 @@ def is_internet_up():
     return True
 
 
-def fetch_metars(queue):
+def fetch_metars(queue, cfg):
     """Fetches new METAR information periodically."""
     failure_count = 0
 
@@ -78,7 +78,7 @@ def fetch_metars(queue):
                 os.system('reboot')
 
         queue.put(metars)
-        time.sleep(METAR_REFRESH_RATE)
+        time.sleep(cfg.getint('settings', 'metar_refresh_rate', fallback=METAR_REFRESH_RATE))
 
 
 def process_metars(queue, leds):
@@ -179,7 +179,7 @@ def lightning(leds, event, cfg):
             time.sleep(LIGHTNING_STRIKE_RATE - strike_duration)
         else:
             # Sleep until the next metar refresh...
-            event.wait(METAR_REFRESH_RATE)
+            event.wait(cfg.getint('settings', 'metar_refresh_rate', fallback=METAR_REFRESH_RATE))
             event.clear()
 
 
@@ -205,7 +205,7 @@ def wind(leds, event, cfg):
 
             time.sleep(WIND_DISPLAY_RATE - indicator_duration)
         else:
-            event.wait(METAR_REFRESH_RATE)
+            event.wait(cfg.getint('settings', 'metar_refresh_rate', fallback=METAR_REFRESH_RATE))
             event.clear()
 
 
@@ -314,7 +314,7 @@ def main():
     t.start()
 
     # A thread to fetch metar information periodically
-    t = threading.Thread(name='metar_fetcher', target=fetch_metars, args=(METAR_QUEUE,))
+    t = threading.Thread(name='metar_fetcher', target=fetch_metars, args=(METAR_QUEUE, cfg))
     t.start()
 
     # A thread to process metar info.
