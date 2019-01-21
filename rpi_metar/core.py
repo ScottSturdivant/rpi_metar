@@ -240,7 +240,7 @@ def on_turn(delta):
 
 def adjust_brightness(leds, cfg):
     while not ENCODER_QUEUE.empty():
-        delta = ENCODER_QUEUE.get()
+        delta = ENCODER_QUEUE.get() * 5
         brightness = leds.getBrightness()
         try:
             leds.setBrightness(brightness + delta)
