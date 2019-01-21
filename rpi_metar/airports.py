@@ -65,7 +65,7 @@ class Airport(object):
 
         try:
             metar = metars[self.code]
-            log.info(metar)
+            log.debug(metar)
             self.raw = metar['raw_text']
         except KeyError:
             log.exception('{} has no data.'.format(self.code))
