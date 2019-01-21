@@ -32,6 +32,11 @@ class RotaryEncoder:
         GPIO.remove_event_detect(self.gpio_b)
         GPIO.cleanup()
 
+    def reset(self):
+        self.last_gpio = None
+        self.level_a = 0
+        self.level_b = 0
+
     def _callback(self, channel):
         level = GPIO.input(channel)
         log.debug('{channel} = {level}'.format(channel=channel, level=level))
