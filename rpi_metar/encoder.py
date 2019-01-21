@@ -7,13 +7,11 @@ log = logging.getLogger(__name__)
 # The two pins that the encoder uses (BCM numbering).
 GPIO_A = 23
 GPIO_B = 25
-# The switch routes here
-GPIO_BUTTON = 24
 
 
 class RotaryEncoder:
 
-    def __init__(self, callback, gpioA=GPIO_A, gpioB=GPIO_B, gpio_button=GPIO_BUTTON, button_callback=None):
+    def __init__(self, callback, gpioA=GPIO_A, gpioB=GPIO_B)
         self.lastGpio = None
         self.gpioA = gpioA
         self.gpioB = gpioB
@@ -31,17 +29,10 @@ class RotaryEncoder:
         GPIO.add_event_detect(self.gpioA, GPIO.BOTH, self._callback)
         GPIO.add_event_detect(self.gpioB, GPIO.BOTH, self._callback)
 
-        if self.gpio_button:
-            GPIO.setup(self.gpio_button, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-            GPIO.add_event_detect(self.gpio_button, GPIO.BOTH, self._button_callback)
-
     def destroy(self):
         GPIO.remove_event_detect(self.gpioA)
         GPIO.remove_event_detect(self.gpioB)
         GPIO.cleanup()
-
-    def _button_callback(self, channel):
-        self.button_callback(GPIO.input(channel))
 
     def _callback(self, channel):
         level = GPIO.input(channel)
