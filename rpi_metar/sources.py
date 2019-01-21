@@ -1,6 +1,7 @@
 import csv
 import logging
 import requests
+import time
 
 from pkg_resources import resource_filename
 from retrying import retry
@@ -50,10 +51,12 @@ class NOAA(METARSource):
 
     def get_metar_info(self):
         """Queries the NOAA METAR service."""
-        # NOAA can only handle so much at once, so split into chunks.
         metars = {}
 
-        for chunk in chunks(self.airport_codes, 500):
+        # NOAA can only handle so much at once, so split into chunks.
+        # Even though we can issue larger chunk sizes, sometimes data is missing from the returned
+        # results. Smaller chunks seem to help...
+        for chunk in chunks(self.airport_codes, 250):
             self.url = self.URL.format(airport_codes=','.join(chunk), subdomain=self.subdomain)
             response = self._query()
             try:
@@ -63,6 +66,9 @@ class NOAA(METARSource):
             except:  # noqa
                 log.exception('Metar response is invalid.')
                 raise
+            finally:
+                # ...but with more requests, we should be nice and wait a bit before the next
+                time.sleep(1.0)
 
             for m in response:
                 metars[m['station_id']] = m
