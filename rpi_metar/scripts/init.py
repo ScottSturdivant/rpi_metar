@@ -16,17 +16,18 @@ def main():
     # If there's an existing config file, see if we want to continue where we left off or just
     # overwrite it.
     i = 0
-    airpots = {}
+    airports = {}
     try:
-        config.read_file(cfg_file)
+        config.read([cfg_file])
     except:
         pass
     else:
+        prompt = None
         while prompt not in ['c', 'o']:
             prompt = input('cfg file exists.  [c]ontinue or [o]verwrite')
-        if prompt == 'o':
-            for code in cfg.options('airports'):
-                index = cfg.getint('airports', code)
+        if prompt == 'c':
+            for code in config.options('airports'):
+                index = config.getint('airports', code)
                 airports[code.upper()] = index
             i = max(airports.values()) + 1
 
