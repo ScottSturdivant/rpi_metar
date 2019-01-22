@@ -120,7 +120,7 @@ def process_metars(queue, leds):
             log.exception('metar processor error')
 
 
-def render_leds(queue, leds):
+def render_leds(queue, leds, cfg):
     """Updates the LED strand when something pops onto the queue."""
     while True:
         log.info('waiting for queue.')
@@ -129,6 +129,11 @@ def render_leds(queue, leds):
         airport = AIRPORTS[airport_code.lower()]
         # This is our target color.
         color = airport.category.value
+
+        if not cfg.getboolean('settings', 'do_fade', fallback=True):
+            leds.setPixelColor(airport.index, color)
+            leds.show()
+            return
 
         # Let's try to fade to our desired color
         start_color = leds.getPixelColor(airport.index)
