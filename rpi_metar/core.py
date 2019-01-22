@@ -170,7 +170,7 @@ def lightning(leds, event, cfg):
     while True:
         # Which airports currently are experiencing thunderstorms
         ts_airports = [airport for airport in airports if airport.thunderstorms]
-        log.info("LIGHTNING @: {}".format(ts_airports))
+        log.debug("LIGHTNING @: {}".format(ts_airports))
         if ts_airports:
             with leds.lock:
                 for airport in ts_airports:
@@ -195,7 +195,7 @@ def wind(leds, event, cfg):
     while True:
         # Which locations are currently breezy
         windy_airports = [airport for airport in airports if airport.windy]
-        log.info('WINDY @: {}'.format(windy_airports))
+        log.debug('WINDY @: {}'.format(windy_airports))
         if windy_airports:
             # We want wind indicators to appear simultaneously.
             with leds.lock:
