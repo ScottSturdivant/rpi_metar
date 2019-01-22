@@ -329,7 +329,7 @@ def main():
         t.start()
 
     # A thread to change the LEDs when airport categories change.
-    t = threading.Thread(name='render_leds', target=render_leds, args=(LED_QUEUE, leds))
+    t = threading.Thread(name='render_leds', target=render_leds, args=(LED_QUEUE, leds, cfg))
     t.start()
 
     # A thread for lightning
