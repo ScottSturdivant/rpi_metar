@@ -2,7 +2,6 @@
 import requests
 import logging
 import logging.handlers
-import multiprocessing
 import os
 import signal
 import sys
@@ -323,10 +322,9 @@ def main():
     t = threading.Thread(name='metar_fetcher', target=fetch_metars, args=(METAR_QUEUE, cfg))
     t.start()
 
-    # Some threads to process metar info.
-    for i in range(0, multiprocessing.cpu_count()):
-        t = threading.Thread(name='metar_processor_{}'.format(i), target=process_metars, args=(METAR_QUEUE, leds))
-        t.start()
+    # A thread to process metar info.
+    t = threading.Thread(name='metar_processor', target=process_metars, args=(METAR_QUEUE, leds))
+    t.start()
 
     # A thread to change the LEDs when airport categories change.
     t = threading.Thread(name='render_leds', target=render_leds, args=(LED_QUEUE, leds, cfg))
