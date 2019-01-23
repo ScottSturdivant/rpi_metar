@@ -23,6 +23,7 @@ class Airport(object):
         self.wind_gusts = 0
         self.max_wind_speed = max_wind_speed_kts
         self._category = wx.FlightCategory.UNKNOWN
+        self._unknown_count = 0
 
     def __repr__(self):
         return '<{code} @ {index}: {raw} -> {cat}>'.format(
@@ -42,7 +43,7 @@ class Airport(object):
 
     @property
     def windy(self):
-        return self.wind_speed > self.max_wind_speed or self.wind_gusts > self.max_wind_speed
+        return (self.wind_speed > self.max_wind_speed or self.wind_gusts > self.max_wind_speed) and self.category != wx.FlightCategory.OFF
 
     @property
     def category(self):
@@ -52,6 +53,13 @@ class Airport(object):
     def category(self, cat):
         if cat is None:
             cat = wx.FlightCategory.UNKNOWN
+
+        if cat == wx.FlightCategory.UNKNOWN:
+            self._unknown_count += 1
+            if self._unknown_count >= 3:
+                cat = wx.FlightCategory.OFF
+        else:
+            self._unknown_count = 0
 
         if self._category != cat:
             log.info('Changing {self} to {cat}'.format(self=self, cat=cat))
@@ -73,7 +81,7 @@ class Airport(object):
             return
 
         # Thunderstorms
-        self.thunderstorms = any(word in metar['raw_text'] for word in ['TSRA', 'VCTS'])
+        self.thunderstorms = any(word in metar['raw_text'] for word in ['TSRA', 'VCTS']) and self.category != wx.FlightCategory.OFF
 
         # Wind info
         try:
