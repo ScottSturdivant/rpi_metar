@@ -24,7 +24,7 @@ CLASSIFIERS = [
 
 setup(
     name=NAME,
-    version='0.2.0',
+    version='0.3.0',
     packages=PACKAGES,
     include_package_data=True,
     description='Visualizing METAR data on a Raspberry Pi with LEDs.',
@@ -39,6 +39,7 @@ setup(
     entry_points={
         'console_scripts': [
             'rpi_metar = rpi_metar.core:main',
+            'rpi_metar_init = rpi_metar.scripts.init:main',
         ],
     },
     python_requires='>=3',

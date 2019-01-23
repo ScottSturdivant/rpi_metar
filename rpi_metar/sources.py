@@ -1,12 +1,19 @@
 import csv
 import logging
 import requests
+import time
 
 from pkg_resources import resource_filename
 from retrying import retry
 from xmltodict import parse as parsexml
 
 log = logging.getLogger(__name__)
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
 
 
 class METARSource:
@@ -33,24 +40,40 @@ class NOAA(METARSource):
         '?dataSource=metars'
         '&requestType=retrieve'
         '&format=xml'
-        '&stationString={airport_codes}'
         '&hoursBeforeNow=2'
         '&mostRecentForEachStation=true'
+        '&stationString={airport_codes}'
     )
 
     def __init__(self, airport_codes, subdomain='www'):
-        self.url = self.URL.format(airport_codes=','.join(airport_codes), subdomain=subdomain)
+        self.airport_codes = airport_codes
+        self.subdomain = subdomain
 
     def get_metar_info(self):
         """Queries the NOAA METAR service."""
-        response = self._query()
-        try:
-            response = parsexml(response.text)['response']['data']['METAR']
-        except:  # noqa
-            log.exception('Metar response is invalid.')
-            raise
+        metars = {}
 
-        return {m['station_id']: m for m in response}
+        # NOAA can only handle so much at once, so split into chunks.
+        # Even though we can issue larger chunk sizes, sometimes data is missing from the returned
+        # results. Smaller chunks seem to help...
+        for chunk in chunks(self.airport_codes, 250):
+            self.url = self.URL.format(airport_codes=','.join(chunk), subdomain=self.subdomain)
+            response = self._query()
+            try:
+                response = parsexml(response.text)['response']['data']['METAR']
+                if not isinstance(response, list):
+                    response = [response]
+            except:  # noqa
+                log.exception('Metar response is invalid.')
+                raise
+            finally:
+                # ...but with more requests, we should be nice and wait a bit before the next
+                time.sleep(1.0)
+
+            for m in response:
+                metars[m['station_id']] = m
+
+        return metars
 
 
 class SkyVector(METARSource):
