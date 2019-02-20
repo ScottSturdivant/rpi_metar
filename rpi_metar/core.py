@@ -132,7 +132,7 @@ def render_leds(queue, leds, cfg):
         if not cfg.getboolean('settings', 'do_fade', fallback=True):
             leds.setPixelColor(airport.index, color)
             leds.show()
-            return
+            continue
 
         # Let's try to fade to our desired color
         start_color = leds.getPixelColor(airport.index)
