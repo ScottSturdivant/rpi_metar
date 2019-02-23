@@ -8,6 +8,7 @@ MAGENTA = Color(0, 255, 255)
 YELLOW = Color(255, 255, 0)
 BLACK = Color(0, 0, 0)
 WHITE = Color(255, 255, 255)
+ORANGE = Color(205, 255, 0)
 
 # For gamma correction
 # https://learn.adafruit.com/led-tricks-gamma-correction/the-issue

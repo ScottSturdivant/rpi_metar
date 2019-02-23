@@ -3,7 +3,7 @@ import logging
 import re
 from enum import Enum
 from fractions import Fraction
-from rpi_metar.leds import GREEN, RED, BLUE, MAGENTA, YELLOW, BLACK
+from rpi_metar.leds import GREEN, RED, BLUE, MAGENTA, YELLOW, BLACK, ORANGE
 
 log = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ class FlightCategory(Enum):
     LIFR = MAGENTA
     UNKNOWN = YELLOW
     OFF = BLACK
+    MISSING = ORANGE
 
 
 def get_conditions(metar_info):

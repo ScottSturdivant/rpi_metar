@@ -12,7 +12,7 @@ LED_QUEUE = Queue()
 
 class Airport(object):
 
-    def __init__(self, code, led_index, max_wind_speed_kts=MAX_WIND_SPEED_KTS):
+    def __init__(self, code, led_index, max_wind_speed_kts=MAX_WIND_SPEED_KTS, unknown_off=True):
         self.code = code.upper()
         self.index = led_index
         self.visibility = None
@@ -24,6 +24,7 @@ class Airport(object):
         self.max_wind_speed = max_wind_speed_kts
         self._category = wx.FlightCategory.UNKNOWN
         self._unknown_count = 0
+        self._unknown_off = unknown_off
 
     def __repr__(self):
         return '<{code} @ {index}: {raw} -> {cat}>'.format(
@@ -57,7 +58,10 @@ class Airport(object):
         if cat == wx.FlightCategory.UNKNOWN:
             self._unknown_count += 1
             if self._unknown_count >= 3:
-                cat = wx.FlightCategory.OFF
+                if self._unknown_off:
+                    cat = wx.FlightCategory.OFF
+                else:
+                    cat = wx.FlightCategory.MISSING
         else:
             self._unknown_count = 0
 

@@ -3,6 +3,7 @@ import requests
 import logging
 import logging.handlers
 import os
+import socket
 import signal
 import sys
 import time
@@ -227,11 +228,16 @@ def load_configuration():
     cfg = ConfigParser()
     cfg.read(cfg_files)
 
+    if 'megamap' in socket.gethostname():
+        cfg.set('settings', 'unknown_off', 'False')
+        cfg.write(open('/etc/rpi_metar.conf', 'w'))
+
     max_wind_speed_kts = cfg.getint('settings', 'max_wind', fallback=MAX_WIND_SPEED_KTS)
+    unknown_off = cfg.getboolean('settings', 'unknown_off', fallback=True)
 
     for code in cfg.options('airports'):
         index = cfg.getint('airports', code)
-        AIRPORTS[code] = Airport(code, index, max_wind_speed_kts=max_wind_speed_kts)
+        AIRPORTS[code] = Airport(code, index, max_wind_speed_kts=max_wind_speed_kts, unknown_off=unknown_off)
 
     return cfg
 
