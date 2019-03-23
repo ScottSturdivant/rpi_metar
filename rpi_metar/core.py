@@ -300,6 +300,11 @@ def main():
 
     cfg = load_configuration()
 
+    if cfg.getboolean('settings', 'papertrail', fallback=True):
+        from rpi_metar import papertrail
+        logger = logging.getLogger('rpi_metar')
+        logger.addHandler(papertrail)
+
     kwargs = {
         'num': max((airport.index for airport in AIRPORTS.values())) + 1,
         'pin': 18,
