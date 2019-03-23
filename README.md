@@ -81,6 +81,7 @@ file. These configuration values can be set:
 |                    |         | reporting data will just turn off. If set to `False`, after     |
 |                    |         | three attempts (during which time they appear as yellow), they  |
 |                    |         | will instead turn to orange.                                    |
+|--------------------|---------|-----------------------------------------------------------------|
 
 For example, to reduce the brightness of the LEDs:
 
