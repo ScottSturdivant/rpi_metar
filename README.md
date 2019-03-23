@@ -41,47 +41,17 @@ file. These configuration values can be set:
 
 | Option             | Default | Description                                                     |
 |--------------------|---------|-----------------------------------------------------------------|
-| brightness         | 128     | An integer (from 0 to 255) controlling the intensity of the LEDs|
-|                    |         | appear. In a well lit room, 75 or 85 are recommended. In a      |
-|                    |         | bright room, try 128.                                           |
-|--------------------|---------|-----------------------------------------------------------------|
-| disable_gamma      | False   | A boolean that will allow you to disable the gamma correction.  |
-|                    |         | You may need this if using LEDs from different manufacturers /  |
-|                    |         | batches in a single run.                                        |
-|--------------------|---------|-----------------------------------------------------------------|
-| do_fade            | True    | A boolean controlling whether or not stations will fade into    |
-|                    |         | their new color during a transition. If `False`, they will just |
-|                    |         | abruptly change colors.                                         |
-|--------------------|---------|-----------------------------------------------------------------|
-| lightning          | True    | A boolean that controls if thunderstorm conditions should be    |
-|                    |         | visually indicated. They will appear as short blinks of white   |
-|                    |         | before going back to the station's original color.              |
-|--------------------|---------|-----------------------------------------------------------------|
-| lightning_duration | 1.0     | A float controlling how long a station blinks white before      |
-|                    |         | returning to its original color.                                |
-|--------------------|---------|-----------------------------------------------------------------|
-| max_wind           | 30      | An integer that sets the threshold for max wind speed in knots. |
-|                    |         | Any steady or gusting winds above this value will result in     |
-|                    |         | yellow blinking lights.                                         |
-|--------------------|---------|-----------------------------------------------------------------|
-| metar_refresh_rate | 5       | An integer that controls how frequently (in minutes) the METAR  |
-|                    |         | information is polled.                                          |
-|--------------------|---------|-----------------------------------------------------------------|
-| papertrail         | True    | A boolean controlling if logs are sent to a centralized system. |
-|                    |         | Only METAR information and processing results are logged.       |
-|--------------------|---------|-----------------------------------------------------------------|
-| wind               | True    | A boolean that controls if high wind speeds should be visually  |
-|                    |         | indicated. They will appear as short blinks of yellow before    |
-|                    |         | going back to the station's original color.                     |
-|--------------------|---------|-----------------------------------------------------------------|
-| wind_duration      | 1.0     | A float controlling how long a station blinks yellow before     |
-|                    |         | returning to its original color.                                |
-|--------------------|---------|-----------------------------------------------------------------|
-| unknown_off        | True    | A boolean that controls whether or not stations that are not    |
-|                    |         | reporting data will just turn off. If set to `False`, after     |
-|                    |         | three attempts (during which time they appear as yellow), they  |
-|                    |         | will instead turn to orange.                                    |
-|--------------------|---------|-----------------------------------------------------------------|
+| brightness         | 128     | An integer (from 0 to 255) controlling the intensity of the LEDs appear. In a well lit room, 75 or 85 are recommended. In a bright room, try 128. |
+| disable_gamma      | False   | A boolean that will allow you to disable the gamma correction. You may need this if using LEDs from different manufacturers / batches in a single run. |
+| do_fade            | True    | A boolean controlling whether or not stations will fade into their new color during a transition. If `False`, they will just abruptly change colors. |
+| lightning          | True    | A boolean that controls if thunderstorm conditions should be visually indicated. They will appear as short blinks of white before going back to the station's original color. |
+| lightning_duration | 1.0     | A float controlling how long a station blinks white before returning to its original color. |
+| max_wind           | 30      | An integer that sets the threshold for max wind speed in knots. Any steady or gusting winds above this value will result in yellow blinking lights. |
+| metar_refresh_rate | 5       | An integer that controls how frequently (in minutes) the METAR information is polled. |
+| papertrail         | True    | A boolean controlling if logs are sent to a centralized system. Only METAR information and processing results are logged. |
+| wind               | True    | A boolean that controls if high wind speeds should be visually indicated. They will appear as short blinks of yellow before going back to the station's original color. |
+| wind_duration      | 1.0     | A float controlling how long a station blinks yellow before returning to its original color. |
+| unknown_off        | True    | A boolean that controls whether or not stations that are not reporting data will just turn off. If set to `False`, after three attempts (during which time they appear as yellow), they will instead turn to orange. |
 
 For example, to reduce the brightness of the LEDs:
 
