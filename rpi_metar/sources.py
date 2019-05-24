@@ -76,6 +76,12 @@ class NOAA(METARSource):
         return metars
 
 
+class NOAABackup(NOAA):
+
+    def __init__(self, airport_codes):
+        super(NOAABackup, self).__init__(airport_codes, subdomain='bcaws')
+
+
 class SkyVector(METARSource):
 
     URL = (

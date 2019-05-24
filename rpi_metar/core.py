@@ -49,11 +49,12 @@ def fetch_metars(queue, cfg):
     failure_count = 0
 
     airport_codes = list(AIRPORTS.keys())
-    data_sources = [
-        sources.NOAA(airport_codes),
-        sources.NOAA(airport_codes, 'bcaws'),
-        sources.SkyVector(airport_codes),
-    ]
+    data_sources = []
+    for source in [sources.NOAA, sources.NOAABackup, sources.SkyVector]:
+        try:
+            data_sources.append(source(airport_codes))
+        except:
+            log.exception('Unable to create data source.')
 
     while True:
         for source in data_sources:
