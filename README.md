@@ -47,7 +47,7 @@ file. These configuration values can be set:
 | lightning          | True    | A boolean that controls if thunderstorm conditions should be visually indicated. They will appear as short blinks of white before going back to the station's original color. |
 | lightning_duration | 1.0     | A float controlling how long a station blinks white before returning to its original color. |
 | max_wind           | 30      | An integer that sets the threshold for max wind speed in knots. Any steady or gusting winds above this value will result in yellow blinking lights. |
-| metar_refresh_rate | 5       | An integer that controls how frequently (in minutes) the METAR information is polled. |
+| metar_refresh_rate | 300     | An integer that controls how frequently (in seconds) the METAR information is polled. |
 | papertrail         | True    | A boolean controlling if logs are sent to a centralized system. Only METAR information and processing results are logged. |
 | wind               | True    | A boolean that controls if high wind speeds should be visually indicated. They will appear as short blinks of yellow before going back to the station's original color. |
 | wind_duration      | 1.0     | A float controlling how long a station blinks yellow before returning to its original color. |
