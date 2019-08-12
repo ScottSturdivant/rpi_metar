@@ -1,5 +1,6 @@
 import csv
 import logging
+import re
 import requests
 import time
 
@@ -145,5 +146,32 @@ class SkyVector(METARSource):
         for item in data:
             if item['s'] in self.airport_codes:
                 metars[item['s']] = {'raw_text': item['m']}
+
+        return metars
+
+
+class BOM(METARSource):
+    """Queries the BOM website service."""
+
+    URL = 'http://www.bom.gov.au/aviation/php/process.php'
+
+    def __init__(self, airport_codes):
+        self.airport_codes = airport_codes
+
+    def get_metar_info(self):
+
+        payload = {
+            'keyword': self.airport_codes,
+            'type': 'search',
+            'page': 'TAF',
+        }
+
+        r = requests.post(self.URL, data=payload)
+
+        matches = re.finditer(r'(?:METAR |SPECI )(?P<METAR>(?P<CODE>\w{4}).*?)(?:<br />|<h3>)', r.text)
+
+        metars = {}
+        for match in matches:
+            metars[match['CODE']] = match['METAR']
 
         return metars
