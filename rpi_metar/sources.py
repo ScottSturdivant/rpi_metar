@@ -172,6 +172,6 @@ class BOM(METARSource):
 
         metars = {}
         for match in matches:
-            metars[match['CODE']] = match['METAR']
+            metars[match['CODE']] = {'raw_text': match['METAR']}
 
         return metars
