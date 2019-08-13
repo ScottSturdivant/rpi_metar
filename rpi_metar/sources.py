@@ -156,7 +156,7 @@ class BOM(METARSource):
     URL = 'http://www.bom.gov.au/aviation/php/process.php'
 
     def __init__(self, airport_codes):
-        self.airport_codes = airport_codes
+        self.airport_codes = ','.join(airport_codes)
 
     def get_metar_info(self):
 
@@ -172,6 +172,7 @@ class BOM(METARSource):
 
         metars = {}
         for match in matches:
-            metars[match['CODE']] = {'raw_text': match['METAR']}
+            info = match.groupdict()
+            metars[info['CODE']] = {'raw_text': info['METAR']}
 
         return metars
