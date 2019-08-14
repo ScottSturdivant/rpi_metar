@@ -72,7 +72,7 @@ class NOAA(METARSource):
                 time.sleep(1.0)
 
             for m in response:
-                metars[m['station_id']] = m
+                metars[m['station_id'].upper()] = m
 
         return metars
 
@@ -145,7 +145,7 @@ class SkyVector(METARSource):
         metars = {}
         for item in data:
             if item['s'] in self.airport_codes:
-                metars[item['s']] = {'raw_text': item['m']}
+                metars[item['s'].upper()] = {'raw_text': item['m']}
 
         return metars
 
@@ -173,6 +173,6 @@ class BOM(METARSource):
         metars = {}
         for match in matches:
             info = match.groupdict()
-            metars[info['CODE']] = {'raw_text': info['METAR']}
+            metars[info['CODE'].upper()] = {'raw_text': info['METAR']}
 
         return metars

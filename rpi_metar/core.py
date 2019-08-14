@@ -48,23 +48,35 @@ def fetch_metars(queue, cfg):
     """Fetches new METAR information periodically."""
     failure_count = 0
 
-    airport_codes = list(AIRPORTS.keys())
-    data_sources = []
-    for source in [sources.NOAA, sources.NOAABackup, sources.SkyVector]:
-        try:
-            data_sources.append(source(airport_codes))
-        except:
-            log.exception('Unable to create data source.')
-
     while True:
-        for source in data_sources:
+
+        metars = {}
+        airport_codes = set(AIRPORTS.keys())
+        for source in [sources.BOM, sources.NOAA, sources.NOAABackup, sources.SkyVector]:
             try:
-                metars = source.get_metar_info()
+                data_source = source(list(airport_codes))
+            except:  # noqa
+                log.exception('Unable to create data source.')
+                continue
+
+            try:
+                info = data_source.get_metar_info()
+                log.info('Retrieved: %s', info)
+                metars.update(info)
                 failure_count = 0
-                break
             except:  # noqa
                 log.exception('Failed to retrieve metar info.')
-        else:  # No data sources returned any info
+
+            # We have retrieved METAR info, but did we get responses for all stations? If we did
+            # not, let's request those missing stations from the other sources. Perhaps they have
+            # the info!
+            airport_codes = airport_codes - set(metars.keys())
+            if not airport_codes:
+                # Nothing else needs to be retrieved
+                break
+
+        # We have exhausted the list of sources.
+        if not metars:
             metars = None
 
             # Some of the raspberry pis lose their wifi after some time and fail to automatically
@@ -127,7 +139,7 @@ def render_leds(queue, leds, cfg):
         log.info('waiting for queue.')
         airport_code = queue.get()
         log.info('got {}'.format(airport_code))
-        airport = AIRPORTS[airport_code.lower()]
+        airport = AIRPORTS[airport_code.upper()]
         # This is our target color.
         color = airport.category.value
 
@@ -238,7 +250,7 @@ def load_configuration():
 
     for code in cfg.options('airports'):
         index = cfg.getint('airports', code)
-        AIRPORTS[code] = Airport(code, index, max_wind_speed_kts=max_wind_speed_kts, unknown_off=unknown_off)
+        AIRPORTS[code.upper()] = Airport(code, index, max_wind_speed_kts=max_wind_speed_kts, unknown_off=unknown_off)
 
     return cfg
 
