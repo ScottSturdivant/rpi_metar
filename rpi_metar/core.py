@@ -48,11 +48,15 @@ def fetch_metars(queue, cfg):
     """Fetches new METAR information periodically."""
     failure_count = 0
 
+    # Load the desired data sources from the user configuration.
+    srcs = cfg.get('settings', 'sources', fallback='NOAA,NOAABackup,SkyVector').split(',')
+    srcs = [getattr(sources, src.strip()) for src in srcs]
+
     while True:
 
         metars = {}
         airport_codes = set(AIRPORTS.keys())
-        for source in [sources.BOM, sources.NOAA, sources.NOAABackup, sources.SkyVector]:
+        for source in srcs:
             try:
                 data_source = source(list(airport_codes))
             except:  # noqa
