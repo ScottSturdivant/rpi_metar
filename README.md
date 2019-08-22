@@ -49,6 +49,7 @@ file. These configuration values can be set:
 | max_wind           | 30      | An integer that sets the threshold for max wind speed in knots. Any steady or gusting winds above this value will result in yellow blinking lights. |
 | metar_refresh_rate | 300     | An integer that controls how frequently (in seconds) the METAR information is polled. |
 | papertrail         | True    | A boolean controlling if logs are sent to a centralized system. Only METAR information and processing results are logged. |
+| sources            | NOAA,NOAABackup,SkyVector | The data sources to be used. A comma separated list of class names from the sources.py file. `BOM` is another source for Australian stations. |
 | wind               | True    | A boolean that controls if high wind speeds should be visually indicated. They will appear as short blinks of yellow before going back to the station's original color. |
 | wind_duration      | 1.0     | A float controlling how long a station blinks yellow before returning to its original color. |
 | unknown_off        | True    | A boolean that controls whether or not stations that are not reporting data will just turn off. If set to `False`, after three attempts (during which time they appear as yellow), they will instead turn to orange. |
