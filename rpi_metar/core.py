@@ -12,7 +12,7 @@ from configparser import ConfigParser
 from rpi_ws281x import PixelStrip
 from rpi_metar import cron, sources, encoder
 from rpi_metar.leds import BLACK, YELLOW, WHITE, GAMMA
-from rpi_metar.airports import Airport, LED_QUEUE, MAX_WIND_SPEED_KTS
+from rpi_metar.airports import Airport, LED_QUEUE, MAX_WIND_SPEED_KTS, Legend
 from rpi_metar.wx import FlightCategory
 from queue import Queue
 
@@ -185,9 +185,11 @@ def lightning(leds, event, cfg):
     """Briefly changes LEDs to white, indicating lightning in the area."""
     airports = AIRPORTS.values()
     strike_duration = cfg.getfloat('settings', 'lightning_duration', fallback=1.0)
+    legend = cfg.getint('legend', 'lightning', fallback=None)
+    legend = [Legend('LIGHTNING', legend, FlightCategory.OFF)] if legend else []
     while True:
         # Which airports currently are experiencing thunderstorms
-        ts_airports = [airport for airport in airports if airport.thunderstorms]
+        ts_airports = [airport for airport in airports if airport.thunderstorms] + legend
         log.debug("LIGHTNING @: {}".format(ts_airports))
         if ts_airports:
             with leds.lock:
@@ -210,9 +212,11 @@ def wind(leds, event, cfg):
     """Briefly changes LEDs to yellow, indicating it's too windy."""
     airports = AIRPORTS.values()
     indicator_duration = cfg.getfloat('settings', 'wind_duration', fallback=1.0)
+    legend = cfg.getint('legend', 'wind', fallback=None)
+    legend = [Legend('WIND', legend, FlightCategory.OFF)] if legend else []
     while True:
         # Which locations are currently breezy
-        windy_airports = [airport for airport in airports if airport.windy]
+        windy_airports = [airport for airport in airports if airport.windy] + legend
         log.debug('WINDY @: {}'.format(windy_airports))
         if windy_airports:
             # We want wind indicators to appear simultaneously.
@@ -300,6 +304,31 @@ def wait_for_knob(event, leds, cfg):
             log.exception('unexpected error')
 
 
+def set_legend(leds, cfg):
+    """Sets a few LEDs to fixed colors, for use with a legend."""
+    if not cfg.has_section('legend'):
+        return
+
+    for category in [FlightCategory.VFR, FlightCategory.IFR, FlightCategory.MVFR, FlightCategory.LIFR]:
+        index = cfg.getint('legend', category.name.casefold(), fallback=None)
+        if index:
+            leds.setPixelColor(index, category.value)
+            log.debug('Legend: set %s to %s.', index, category.name)
+
+
+def get_num_leds(cfg):
+    """Returns the number of LEDs as defined in the configuration file.
+
+    It takes into account that LEDs can be defined in both the 'airports' and 'legend' sections.
+    """
+    airport_max = max((airport.index for airport in AIRPORTS.values()))
+    legend_max = 0
+    if cfg.has_section('legend'):
+        legend_max = max((int(v) for v in cfg['legend'].values()))
+
+    return max([airport_max, legend_max]) + 1
+
+
 def main():
 
     # Register the encoder to handle changing the brightness
@@ -323,7 +352,7 @@ def main():
         logger.addHandler(papertrail)
 
     kwargs = {
-        'num': max((airport.index for airport in AIRPORTS.values())) + 1,
+        'num': get_num_leds(cfg),
         'pin': 18,
         'gamma': GAMMA,
         'brightness': int(cfg.get('settings', 'brightness', fallback=128))
@@ -340,6 +369,7 @@ def main():
 
     for airport in AIRPORTS.values():
         leds.setPixelColor(airport.index, YELLOW)
+    set_legend(leds, cfg)
     leds.show()
 
     # Kick off a thread to handle adjusting the brightness

@@ -108,3 +108,17 @@ class Airport(object):
             log.info('%s does not have flight category field, falling back to raw text parsing.', self.code)
             self.visibility, self.ceiling, self.wind_speed, self.wind_gusts = wx.get_conditions(metar['raw_text'])
             self.category = wx.get_flight_category(self.visibility, self.ceiling)
+
+
+class Legend(object):
+
+    def __init__(self, name, index, category):
+        self.name = name
+        self.index = index
+        self.category = category
+
+    def __repr__(self):
+        return '<LEGEND @ {index}: {name}>'.format(
+            index=self.index,
+            name=self.name
+        )

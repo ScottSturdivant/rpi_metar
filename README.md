@@ -62,6 +62,20 @@ For example, to reduce the brightness of the LEDs:
 brightness = 85
 ```
 
+Another feature includes setting up a legend.  These are a series of lights that will always
+display their assigned static color.  Similar to setting up the airports by LED index, you can
+assign flight categories to LED indexes:
+
+```
+[legend]
+VFR = 10
+IFR = 11
+LIFR = 12
+MVFR = 13
+WIND = 14
+LIGHTNING = 15
+```
+
 # Autostart
 
 Create the `/etc/systemd/system/rpi_metar.service` file with the following contents:
