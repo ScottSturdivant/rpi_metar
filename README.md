@@ -15,9 +15,10 @@ continue reading and happy tinkering!
 
 ```
 sudo su
-apt install python3-venv
+apt install python3-venv python3-dev
 python3 -m venv /opt/rpi_metar
 source /opt/rpi_metar/bin/activate
+pip install wheel
 pip install rpi_metar
 ```
 
