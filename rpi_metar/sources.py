@@ -1,5 +1,6 @@
 import csv
 import logging
+import re
 import requests
 import time
 
@@ -71,7 +72,7 @@ class NOAA(METARSource):
                 time.sleep(1.0)
 
             for m in response:
-                metars[m['station_id']] = m
+                metars[m['station_id'].upper()] = m
 
         return metars
 
@@ -144,6 +145,34 @@ class SkyVector(METARSource):
         metars = {}
         for item in data:
             if item['s'] in self.airport_codes:
-                metars[item['s']] = {'raw_text': item['m']}
+                metars[item['s'].upper()] = {'raw_text': item['m']}
+
+        return metars
+
+
+class BOM(METARSource):
+    """Queries the BOM website service."""
+
+    URL = 'http://www.bom.gov.au/aviation/php/process.php'
+
+    def __init__(self, airport_codes):
+        self.airport_codes = ','.join(airport_codes)
+
+    def get_metar_info(self):
+
+        payload = {
+            'keyword': self.airport_codes,
+            'type': 'search',
+            'page': 'TAF',
+        }
+
+        r = requests.post(self.URL, data=payload)
+
+        matches = re.finditer(r'(?:METAR |SPECI )(?P<METAR>(?P<CODE>\w{4}).*?)(?:<br />|<h3>)', r.text)
+
+        metars = {}
+        for match in matches:
+            info = match.groupdict()
+            metars[info['CODE'].upper()] = {'raw_text': info['METAR']}
 
         return metars

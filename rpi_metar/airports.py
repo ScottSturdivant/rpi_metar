@@ -1,4 +1,5 @@
 import logging
+import re
 from queue import Queue
 from rpi_metar import wx
 
@@ -85,7 +86,7 @@ class Airport(object):
             return
 
         # Thunderstorms
-        self.thunderstorms = any(word in metar['raw_text'] for word in ['TSRA', 'VCTS']) and self.category != wx.FlightCategory.OFF
+        self.thunderstorms = bool(re.search(r'\w{4,5}.*(TS).*?(?=RMK)', metar['raw_text']) and self.category != wx.FlightCategory.OFF)
 
         # Wind info
         try:
