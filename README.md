@@ -15,9 +15,10 @@ continue reading and happy tinkering!
 
 ```
 sudo su
-apt install python3-venv
+apt install python3-venv python3-dev
 python3 -m venv /opt/rpi_metar
 source /opt/rpi_metar/bin/activate
+pip install wheel
 pip install rpi_metar
 ```
 
@@ -59,6 +60,20 @@ For example, to reduce the brightness of the LEDs:
 ```
 [settings]
 brightness = 85
+```
+
+Another feature includes setting up a legend.  These are a series of lights that will always
+display their assigned static color.  Similar to setting up the airports by LED index, you can
+assign flight categories to LED indexes:
+
+```
+[legend]
+VFR = 10
+IFR = 11
+LIFR = 12
+MVFR = 13
+WIND = 14
+LIGHTNING = 15
 ```
 
 # Autostart
