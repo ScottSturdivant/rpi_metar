@@ -311,7 +311,7 @@ def set_legend(leds, cfg):
 
     for category in [FlightCategory.VFR, FlightCategory.IFR, FlightCategory.MVFR, FlightCategory.LIFR]:
         index = cfg.getint('legend', category.name.casefold(), fallback=None)
-        if index:
+        if index is not None:
             leds.setPixelColor(index, category.value)
             log.debug('Legend: set %s to %s.', index, category.name)
 
@@ -345,11 +345,6 @@ def main():
     cron.set_upgrade_schedule()
 
     cfg = load_configuration()
-
-    if cfg.getboolean('settings', 'papertrail', fallback=True):
-        from rpi_metar import papertrail
-        logger = logging.getLogger('rpi_metar')
-        logger.addHandler(papertrail)
 
     kwargs = {
         'num': get_num_leds(cfg),
