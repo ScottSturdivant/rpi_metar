@@ -13,16 +13,8 @@ class ContextFilter(logging.Filter):
         record.version = ContextFilter.version
         return True
 
-ctx_filter = ContextFilter()
-papertrail = logging.handlers.SysLogHandler(address=('logs2.papertrailapp.com', 43558))
-formatter = logging.Formatter(
-    '%(asctime)s %(hostname)s rpi_metar: %(levelname)s %(version)s %(threadName)s %(message)s',
-    datefmt='%b %d %H:%M:%S'
-)
 
-papertrail.setFormatter(formatter)
-papertrail.setLevel(logging.INFO)
-papertrail.addFilter(ctx_filter)
+ctx_filter = ContextFilter()
 
 
 def init_logger():
@@ -35,7 +27,6 @@ def init_logger():
     handler.setFormatter(formatter)
     handler.addFilter(ctx_filter)
     log.addHandler(handler)
-
 
 
 init_logger()

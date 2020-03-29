@@ -346,11 +346,6 @@ def main():
 
     cfg = load_configuration()
 
-    if cfg.getboolean('settings', 'papertrail', fallback=True):
-        from rpi_metar import papertrail
-        logger = logging.getLogger('rpi_metar')
-        logger.addHandler(papertrail)
-
     kwargs = {
         'num': get_num_leds(cfg),
         'pin': 18,
