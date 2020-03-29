@@ -24,7 +24,7 @@ CLASSIFIERS = [
 
 setup(
     name=NAME,
-    version='0.4',
+    version='0.4.1',
     packages=PACKAGES,
     include_package_data=True,
     description='Visualizing METAR data on a Raspberry Pi with LEDs.',
