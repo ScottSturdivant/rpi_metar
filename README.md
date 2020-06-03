@@ -37,6 +37,15 @@ KBOS = 1
 The LED indexes can be skipped and do not need to be continuous.  If you don't have an LED
 associated with an airport, it does not need to be entered.
 
+Airports may also be repeated at different indexes, though to enable this the keys must be unique:
+
+```
+# this displays KDEN at both 3 and 45
+[airports]
+KDEN1 = 3
+KDEN2 = 45
+```
+
 The behavior of the program can be tweaked by including a `settings` section in the configuration
 file. These configuration values can be set:
 

@@ -55,7 +55,8 @@ def fetch_metars(queue, cfg):
     while True:
 
         metars = {}
-        airport_codes = set(AIRPORTS.keys())
+        # Allow duplicate LEDs by only using the first 4 chars as the ICAO. Anything else after it helps keep it unique.
+        airport_codes = set([code[:4] for code in AIRPORTS.keys()])
         for source in srcs:
             try:
                 data_source = source(list(airport_codes))
