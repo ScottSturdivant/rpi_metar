@@ -82,6 +82,9 @@ LIFR = 12
 MVFR = 13
 WIND = 14
 LIGHTNING = 15
+UNKNOWN = 16
+OFF = 17
+MISSING = 18
 ```
 
 # Autostart

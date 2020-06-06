@@ -310,11 +310,11 @@ def set_legend(leds, cfg):
     if not cfg.has_section('legend'):
         return
 
-    for category in [FlightCategory.VFR, FlightCategory.IFR, FlightCategory.MVFR, FlightCategory.LIFR]:
+    for category in FlightCategory:
         index = cfg.getint('legend', category.name.casefold(), fallback=None)
         if index is not None:
             leds.setPixelColor(index, category.value)
-            log.debug('Legend: set %s to %s.', index, category.name)
+            log.info('Legend: set %s to %s.', index, category.name)
 
 
 def get_num_leds(cfg):
