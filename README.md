@@ -94,6 +94,8 @@ Create the `/etc/systemd/system/rpi_metar.service` file with the following conte
 ```
 [Unit]
 Description=METAR Display
+Wants=network-online.target
+After=network.target network-online.target
 
 [Service]
 ExecStart=/opt/rpi_metar/bin/rpi_metar
