@@ -59,7 +59,7 @@ def fetch_metars(queue, cfg):
         airport_codes = set([code[:4] for code in AIRPORTS.keys()])
         for source in srcs:
             try:
-                data_source = source(list(airport_codes))
+                data_source = source(list(airport_codes), config=cfg)
             except:  # noqa
                 log.exception('Unable to create data source.')
                 continue
