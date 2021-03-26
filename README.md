@@ -95,6 +95,26 @@ username = your_username
 password = your_password
 ```
 
+The colors of the LEDs themselves along with their association to flight categories / behaviors can also be
+modified. To adjust individual colors, a 3-int tuple can be provided in GRB format:
+
+```
+[colors]
+GREEN = (250, 0, 0) # Overriding a default color value.
+NAVY_BLUE = (22, 22, 22) # A new value, not overriding a default.
+```
+
+Then, if you wanted to associate these new color definitions to behaviors, you can do the following:
+
+```
+[flight_categories]
+LIFR = NAVY_BLUE # LIFR will now show as (22, 22, 22)
+IFR = (66, 66, 66) # You can also just provide a new 3-int tuple without having given it a name.
+```
+
+Though not explicitly listed in that `flight_categories` section, since VFR defaults to GREEN, it will
+now be displayed using our modified `(250, 0, 0)` parameters.
+
 # Autostart
 
 Create the `/etc/systemd/system/rpi_metar.service` file with the following contents:
