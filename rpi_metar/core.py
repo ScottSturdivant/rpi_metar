@@ -189,7 +189,7 @@ def lightning(leds, event, cfg):
     airports = AIRPORTS.values()
     strike_duration = cfg.getfloat('settings', 'lightning_duration', fallback=1.0)
     legend = cfg.getint('legend', 'lightning', fallback=None)
-    legend = [Legend('LIGHTNING', legend, wx.FlightCategory.OFF)] if legend else []
+    legend = [Legend('LIGHTNING', legend, wx.FlightCategory.OFF)] if legend is not None else []
     while True:
         # Which airports currently are experiencing thunderstorms
         ts_airports = [airport for airport in airports if airport.thunderstorms] + legend
@@ -216,7 +216,7 @@ def wind(leds, event, cfg):
     airports = AIRPORTS.values()
     indicator_duration = cfg.getfloat('settings', 'wind_duration', fallback=1.0)
     legend = cfg.getint('legend', 'wind', fallback=None)
-    legend = [Legend('WIND', legend, wx.FlightCategory.OFF)] if legend else []
+    legend = [Legend('WIND', legend, wx.FlightCategory.OFF)] if legend is not None else []
     while True:
         # Which locations are currently breezy
         windy_airports = [airport for airport in airports if airport.windy] + legend
