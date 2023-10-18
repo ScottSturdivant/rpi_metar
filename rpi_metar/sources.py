@@ -37,7 +37,7 @@ class METARSource:
 class NOAA(METARSource):
 
     URL = (
-        'https://{subdomain}.aviationweather.gov/adds/dataserver_current/httpparam'
+        'https://{subdomain}.aviationweather.gov/cgi-bin/data/dataserver.php'
         '?dataSource=metars'
         '&requestType=retrieve'
         '&format=xml'
