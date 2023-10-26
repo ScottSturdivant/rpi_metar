@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import enum
+
 import requests
 import logging
 import logging.handlers
@@ -11,9 +13,9 @@ import threading
 from configparser import ConfigParser
 from rpi_ws281x import PixelStrip
 from rpi_metar import cron, sources, encoder
-from rpi_metar.leds import BLACK, YELLOW, WHITE, GAMMA
 from rpi_metar.airports import Airport, LED_QUEUE, MAX_WIND_SPEED_KTS, Legend
-from rpi_metar.wx import FlightCategory
+from rpi_metar import wx
+from rpi_metar import leds as colors
 from queue import Queue
 
 
@@ -55,10 +57,11 @@ def fetch_metars(queue, cfg):
     while True:
 
         metars = {}
-        airport_codes = set(AIRPORTS.keys())
+        # Allow duplicate LEDs by only using the first 4 chars as the ICAO. Anything else after it helps keep it unique.
+        airport_codes = set([code[:4] for code in AIRPORTS.keys()])
         for source in srcs:
             try:
-                data_source = source(list(airport_codes))
+                data_source = source(list(airport_codes), config=cfg)
             except:  # noqa
                 log.exception('Unable to create data source.')
                 continue
@@ -115,7 +118,7 @@ def process_metars(queue, leds):
             metars = queue.get()
             if metars is None:
                 for airport in airports:
-                    airport.category = FlightCategory.UNKNOWN
+                    airport.category = wx.FlightCategory.UNKNOWN
                 continue
 
             for airport in airports:
@@ -186,7 +189,7 @@ def lightning(leds, event, cfg):
     airports = AIRPORTS.values()
     strike_duration = cfg.getfloat('settings', 'lightning_duration', fallback=1.0)
     legend = cfg.getint('legend', 'lightning', fallback=None)
-    legend = [Legend('LIGHTNING', legend, FlightCategory.OFF)] if legend else []
+    legend = [Legend('LIGHTNING', legend, wx.FlightCategory.OFF)] if legend is not None else []
     while True:
         # Which airports currently are experiencing thunderstorms
         ts_airports = [airport for airport in airports if airport.thunderstorms] + legend
@@ -194,7 +197,7 @@ def lightning(leds, event, cfg):
         if ts_airports:
             with leds.lock:
                 for airport in ts_airports:
-                    leds.setPixelColor(airport.index, WHITE)
+                    leds.setPixelColor(airport.index, wx.FlightCategory.THUNDERSTORM.value)
                 leds.show()
                 time.sleep(strike_duration)
 
@@ -213,7 +216,7 @@ def wind(leds, event, cfg):
     airports = AIRPORTS.values()
     indicator_duration = cfg.getfloat('settings', 'wind_duration', fallback=1.0)
     legend = cfg.getint('legend', 'wind', fallback=None)
-    legend = [Legend('WIND', legend, FlightCategory.OFF)] if legend else []
+    legend = [Legend('WIND', legend, wx.FlightCategory.OFF)] if legend is not None else []
     while True:
         # Which locations are currently breezy
         windy_airports = [airport for airport in airports if airport.windy] + legend
@@ -222,7 +225,7 @@ def wind(leds, event, cfg):
             # We want wind indicators to appear simultaneously.
             with leds.lock:
                 for airport in windy_airports:
-                    leds.setPixelColor(airport.index, YELLOW)
+                    leds.setPixelColor(airport.index, wx.FlightCategory.WINDY.value)
                 leds.show()
                 time.sleep(indicator_duration)
 
@@ -236,7 +239,7 @@ def wind(leds, event, cfg):
             event.clear()
 
 
-def set_all(leds, color=BLACK):
+def set_all(leds, color=colors.BLACK):
     """Sets all leds to a specific color."""
     for i in range(leds.numPixels()):
         leds.setPixelColor(i, color)
@@ -246,12 +249,55 @@ def set_all(leds, color=BLACK):
 def load_configuration():
     cfg_files = ['/etc/rpi_metar.conf', './rpi_metar.conf']
 
-    cfg = ConfigParser()
+    cfg = ConfigParser(converters={'color': colors.get_color})
     cfg.read(cfg_files)
 
     if 'megamap' in socket.gethostname():
         cfg.set('settings', 'unknown_off', 'False')
         cfg.write(open('/etc/rpi_metar.conf', 'w'))
+
+
+    # If we have redefined a color value (e.g. tweaked green a bit), or changed what should be displayed entirely (e.g.
+    # display ORANGE for LIFR), we need to rebuild the FlightCategory enum.
+    enum_needs_update = cfg.has_section('colors') or cfg.has_section('flight_categories')
+
+    # Load colors first so we can associate those to flight categories / behaviors
+    if cfg.has_section('colors'):
+        for color_name in cfg.options('colors'):
+            color_name = color_name.upper()
+            color_value = cfg.getcolor('colors', color_name)
+            # And the hacks begin. Set these newly defined colors in the module.
+            setattr(colors, color_name.upper(), color_value)
+            log.debug('Setting custom color: {} -> {}'.format(color_name, color_value))
+
+    # Now that colors should all be set, let's associate them to categories / behaviors
+    categories_to_colors = {
+        'VFR': colors.GREEN,
+        'IFR': colors.RED,
+        'LIFR': colors.MAGENTA,
+        'MVFR': colors.BLUE,
+        'UNKNOWN': colors.YELLOW,
+        'OFF': colors.BLACK,
+        'MISSING': colors.ORANGE,
+        'THUNDERSTORM': colors.WHITE,
+        'WINDY': colors.YELLOW,
+    }
+
+    if cfg.has_section('flight_categories'):
+        for category_name in cfg.options('flight_categories'):
+            category_name = category_name.upper()
+            if category_name not in categories_to_colors:
+                log.warning('{} is not a valid flight category, ignoring.'.format(category_name))
+                continue
+            color_value = cfg.getcolor('flight_categories', category_name)
+            log.debug('Overriding default color for {}, setting to: {}'.format(category_name, color_value))
+            categories_to_colors[category_name] = color_value
+
+    if enum_needs_update:
+        wx.FlightCategory = enum.Enum(
+            'FlightCategory',
+            categories_to_colors
+        )
 
     max_wind_speed_kts = cfg.getint('settings', 'max_wind', fallback=MAX_WIND_SPEED_KTS)
     unknown_off = cfg.getboolean('settings', 'unknown_off', fallback=True)
@@ -259,6 +305,8 @@ def load_configuration():
     for code in cfg.options('airports'):
         index = cfg.getint('airports', code)
         AIRPORTS[code.upper()] = Airport(code, index, max_wind_speed_kts=max_wind_speed_kts, unknown_off=unknown_off)
+
+
 
     return cfg
 
@@ -309,11 +357,11 @@ def set_legend(leds, cfg):
     if not cfg.has_section('legend'):
         return
 
-    for category in [FlightCategory.VFR, FlightCategory.IFR, FlightCategory.MVFR, FlightCategory.LIFR]:
+    for category in wx.FlightCategory:
         index = cfg.getint('legend', category.name.casefold(), fallback=None)
         if index is not None:
             leds.setPixelColor(index, category.value)
-            log.debug('Legend: set %s to %s.', index, category.name)
+            log.info('Legend: set %s to %s.', index, category.name)
 
 
 def get_num_leds(cfg):
@@ -336,7 +384,7 @@ def main():
 
     def on_exit(sig, frame):
         knob.destroy()
-        set_all(leds, BLACK)
+        set_all(leds, colors.BLACK)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, on_exit)
@@ -349,7 +397,7 @@ def main():
     kwargs = {
         'num': get_num_leds(cfg),
         'pin': 18,
-        'gamma': GAMMA,
+        'gamma': colors.GAMMA,
         'brightness': int(cfg.get('settings', 'brightness', fallback=128))
     }
     # Sometimes if we use LED strips from different batches, they behave differently with the gamma
@@ -360,10 +408,10 @@ def main():
     leds = PixelStrip(**kwargs)
     leds.begin()
     leds.lock = threading.Lock()
-    set_all(leds, BLACK)
+    set_all(leds, wx.FlightCategory.UNKNOWN.value)
 
     for airport in AIRPORTS.values():
-        leds.setPixelColor(airport.index, YELLOW)
+        leds.setPixelColor(airport.index, wx.FlightCategory.UNKNOWN.value)
     set_legend(leds, cfg)
     leds.show()
 
