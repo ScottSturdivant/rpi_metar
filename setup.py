@@ -35,6 +35,7 @@ setup(
     classifiers=CLASSIFIERS,
     url='https://github.com/ScottSturdivant/rpi_metar',
     long_description=read_md('README.md'),
+    long_description_content_type='text/markdown',
     install_requires=open('requirements.txt', 'r').read(),
     entry_points={
         'console_scripts': [
