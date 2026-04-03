@@ -37,7 +37,7 @@ class METARSource:
 class NOAA(METARSource):
 
     URL = (
-        'https://{subdomain}.aviationweather.gov/cgi-bin/data/dataserver.php'
+        'https://aviationweather.gov/api/data/dataserver'
         '?dataSource=metars'
         '&requestType=retrieve'
         '&format=xml'
@@ -46,9 +46,8 @@ class NOAA(METARSource):
         '&stationString={airport_codes}'
     )
 
-    def __init__(self, airport_codes, subdomain='www', **kwargs):
+    def __init__(self, airport_codes, **kwargs):
         self.airport_codes = airport_codes
-        self.subdomain = subdomain
 
     def get_metar_info(self):
         """Queries the NOAA METAR service."""
@@ -58,7 +57,7 @@ class NOAA(METARSource):
         # Even though we can issue larger chunk sizes, sometimes data is missing from the returned
         # results. Smaller chunks seem to help...
         for chunk in chunks(self.airport_codes, 250):
-            self.url = self.URL.format(airport_codes=','.join(chunk), subdomain=self.subdomain)
+            self.url = self.URL.format(airport_codes=','.join(chunk))
             response = self._query()
             try:
                 response = parsexml(response.text)['response']['data']['METAR']
@@ -79,8 +78,15 @@ class NOAA(METARSource):
 
 class NOAABackup(NOAA):
 
+    URL = (
+        'https://aviationweather.gov/api/data/metar'
+        '?ids={airport_codes}'
+        '&format=xml'
+        '&hours=2'
+    )
+
     def __init__(self, airport_codes, **kwargs):
-        super(NOAABackup, self).__init__(airport_codes, subdomain='bcaws', **kwargs)
+        super(NOAABackup, self).__init__(airport_codes, **kwargs)
 
 
 class SkyVector(METARSource):
